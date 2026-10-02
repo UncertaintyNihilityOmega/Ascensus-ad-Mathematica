@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 # Window / coordinates
-WINDOW_FRACTION = 0.85     # windowed mode: square window, side = this * desktop height
+WINDOW_FRACTION = 0.80     # windowed mode: square window, side = this * usable screen height
 FPS = 60
 TITLE = "Ascensus ad Mathematica"
 UNIT_PX = 50.0

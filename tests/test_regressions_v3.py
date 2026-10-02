@@ -167,10 +167,13 @@ def test_picker_blocks_clicks_to_the_upgrade_panel_and_esc_closes():
 # --- bug 3: minimum window size and fitted text ------------------------------------------------------
 def test_windowed_mode_has_minimum_size():
     screen = display.set_display(False)
-    assert min(screen.get_size()) >= min(config.WINDOW_MIN_SIZE)
+    area, caption, frame = display.work_area()
+    size, _, min_size = display.window_geometry(area, caption, frame, config.WINDOW_FRACTION,
+                                                config.WINDOW_MIN_SIZE)
+    assert screen.get_size() == size and size[0] >= min_size[0] and size[1] >= min_size[1]
     try:
         win = pygame.Window.from_display_module()
-        assert tuple(win.minimum_size) in (tuple(config.WINDOW_MIN_SIZE), (0, 0))   # dummy driver may ignore it
+        assert tuple(win.minimum_size) in (tuple(min_size), (0, 0))                # dummy driver may ignore it
     except AttributeError:
         pass
     display.set_display(False)
@@ -238,3 +241,21 @@ def test_new_game_starts_without_equations(tmp_path, monkeypatch):
     assert g.equations.entries == [] and not g.equations.store.vars
     g.equations.add("y = a x")
     assert list(tmp_path.iterdir()) == []                     # nothing written next to the game
+
+
+# --- the windowed mode always fits the screen, title bar included (1366x768 opened too tall) -----------
+@pytest.mark.parametrize("area", [(0, 0, 1366, 768), (0, 0, 1366, 728), (0, 0, 1920, 1040), (0, 0, 1024, 600),
+                                  (1920, 0, 2560, 1400)])
+def test_window_geometry_fits_the_work_area(area):
+    rect = pygame.Rect(area)
+    caption, frame = 23, 4
+    (w, h), (x, y), (mw, mh) = display.window_geometry(rect, caption, frame, 0.80, (800, 600))
+    outer = pygame.Rect(x - frame, y - caption - frame, w + 2 * frame, h + caption + 2 * frame)
+    assert rect.contains(outer), (outer, rect)                         # title bar and borders on screen
+    assert w >= mw and h >= mh and mw <= 800 and mh <= 600
+    assert abs(outer.centerx - rect.centerx) <= 1                       # centred horizontally
+
+
+def test_window_geometry_on_the_users_1366x768_screen():
+    (w, h), (x, y), _ = display.window_geometry(pygame.Rect(0, 0, 1366, 768), 23, 4, 0.80, (800, 600))
+    assert (w, h) == (800, 600) and y >= 23                             # was 800x800 with the title off-screen

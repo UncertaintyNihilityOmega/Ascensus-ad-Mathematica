@@ -213,8 +213,8 @@ def test_window_size_applies_live():
     display.fullscreen = False
     scene = SettingsScene(lambda: None)
     click(scene, scene.row_rects("WINDOW_FRACTION")["minus"].center)
-    assert config.WINDOW_FRACTION == pytest.approx(0.80)
-    assert not display.fullscreen and view.W == view.H == display.window_side()
+    assert config.WINDOW_FRACTION == pytest.approx(0.75)
+    assert not display.fullscreen and (view.W, view.H) == display.window_size()
     assert pygame.display.get_surface().get_size() == (view.W, view.H)
     assert scene.area.rect.right <= view.W
 

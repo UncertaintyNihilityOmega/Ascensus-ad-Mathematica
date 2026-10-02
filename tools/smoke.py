@@ -532,7 +532,7 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
     display.fullscreen = False
     page = SettingsScene(lambda: game)
     click(page, page.row_rects("WINDOW_FRACTION")["minus"])
-    assert view.W == view.H == display.window_side() and screen.get_size() != (0, 0)
+    assert (view.W, view.H) == display.window_size() and screen.get_size() != (0, 0)
     settings.reset_all()
     assert settings.apply_saved() == 3 and config.UNIT_PX == 40 and config.GRID_STEP == 4   # + WINDOW_FRACTION
     settings.reset_all()

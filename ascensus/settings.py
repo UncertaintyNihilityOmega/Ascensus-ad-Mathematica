@@ -63,7 +63,7 @@ DISPLAY, CONTROLS, PLAYER, ENEMIES, BOSS, COMBAT, UPGRADES, EQUATIONS = (
 SETTINGS: list[Setting] = [
     # Display
     _b("FULLSCREEN_START", "Fullscreen", DISPLAY, "Start in full screen (F11 toggles in game)", True),
-    _f("WINDOW_FRACTION", "Window size", DISPLAY, 0.3, 1.0, 0.05, "Windowed side as a fraction of the screen height", True),
+    _f("WINDOW_FRACTION", "Window size", DISPLAY, 0.3, 1.0, 0.05, "Window height as a fraction of the screen", True),
     _f("UNIT_PX", "Zoom (pixels per unit)", DISPLAY, 25, 100, 5, "Pixels per math unit; rebuilds the curves"),
     _b("SHOW_FPS_DEFAULT", "Show FPS", DISPLAY, "F3 toggles in game"),
     _b("SHOW_GRID_DEFAULT", "Show grid", DISPLAY, "G toggles in game"),
