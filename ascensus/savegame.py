@@ -16,7 +16,6 @@ import numpy as np
 import pygame
 
 from . import config, view
-from .equations import USE_CONFIG, resolve_save_path
 from .curvefield import render_curve
 
 AUTO = "autosave"                          # the slot key of the autosave (the others are 1..SAVE_SLOTS)
@@ -31,7 +30,6 @@ def snapshot(game) -> dict:
               "facing": np.asarray(p.facing, dtype=float).tolist(),
               "iframes": float(getattr(p, "iframes", 0.0)), "dash_left": float(getattr(p, "dash_left", 0.0)),
               "dash_cd": float(getattr(p, "dash_cd", 0.0)), "dash_count": int(getattr(p, "dash_count", 0))}
-    store = game.equations.store
     return {
         "version": config.SAVE_VERSION,
         "game_t": float(game.game_t),
@@ -44,10 +42,7 @@ def snapshot(game) -> dict:
         "stats": {"bosses_killed": int(game.swarm.bosses_killed), "damage_dealt": float(game.swarm.damage_dealt),
                   "dashes": player["dash_count"], "equations_cast": int(game.equations_cast)},
         "upgrades": game.upgrades.to_dict(),
-        "equations": [{"text": e.text, "enabled": bool(e.enabled), "color": list(e.color)}
-                      for e in game.equations.entries],
-        "variables": {n: {"value": float(v.value), "playing": bool(v.playing), "dir": int(v.dir)}
-                      for n, v in store.vars.items()},
+        **game.equations.to_data(),
     }
 
 
@@ -59,10 +54,10 @@ def _finite(x, lo: float | None = None) -> float:
     return v
 
 
-def restore(data: dict, save_path: Path | None | str = USE_CONFIG, profile=None):
+def restore(data: dict, profile=None):
     """Build a GameScene continuing the saved run; raises ValueError when `data` is not a valid save.
 
-    `save_path` is where the restored equations are written (None: nowhere); `profile` as for GameScene.
+    `profile` as for GameScene.
     """
     from .scenes import GameScene                         # lazy: scenes may import this module
 
@@ -71,7 +66,7 @@ def restore(data: dict, save_path: Path | None | str = USE_CONFIG, profile=None)
     if any(k not in data for k in _REQUIRED):
         raise ValueError("incomplete save")
     try:
-        game = GameScene(seed=None, save_path=None, profile=profile)    # fresh rng seed; no equations read
+        game = GameScene(seed=None, profile=profile)    # fresh rng seed
         game.game_t = _finite(data["game_t"], 0.0)
         game.kills = int(data["kills"])
         game.boss_banner = max(_finite(data.get("boss_banner", 0.0)), 0.0)
@@ -107,8 +102,6 @@ def restore(data: dict, save_path: Path | None | str = USE_CONFIG, profile=None)
     except (KeyError, TypeError, ValueError, IndexError, AttributeError) as err:
         raise ValueError(f"corrupt save: {err}") from err
     game.equations.apply_data({"equations": data["equations"], "variables": data["variables"]})
-    game.equations.save_path = resolve_save_path(save_path)
-    game.equations.save()
     return game
 
 

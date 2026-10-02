@@ -26,9 +26,9 @@ def _pg():
     pygame.quit()
 
 
-def lazy_manager(n, path=None):
+def lazy_manager(n):
     """n rows with no curves built (cheap): enough for sidebar geometry tests."""
-    m = EquationManager(path)
+    m = EquationManager()
     for k in range(n):
         m._append(f"y = x + {k}", build=False)
     return m
@@ -150,8 +150,7 @@ def test_drag_not_started_in_middle_zone_does_not_scroll():
 
 # --- colour picker -------------------------------------------------------
 def test_picker_pick_close_and_save(tmp_path):
-    path = tmp_path / "f.json"
-    m = EquationManager(path)
+    m = EquationManager()
     for t in ("x^2", "sin(x)", "x = 2"):
         m.add(t)
     sb = Sidebar(m, InputBox())
@@ -164,7 +163,7 @@ def test_picker_pick_close_and_save(tmp_path):
     assert len({tuple(sb._picker_cell(k).topleft) for k in range(20)}) == 20
     assert sb.handle_event(down(cell.center))
     assert m.entries[1].color == config.CURVE_PALETTE_20[13] and sb.picker_idx is None
-    assert json.loads(path.read_text())["equations"][1]["color"] == list(config.CURVE_PALETTE_20[13])
+    assert m.to_data()["equations"][1]["color"] == list(config.CURVE_PALETTE_20[13])
     # click outside closes without changing anything
     old = m.entries[2].color
     sb.handle_event(down(sb.rects(2)["swatch"].center))
@@ -191,47 +190,39 @@ def test_new_equations_take_first_unused_color_then_cycle():
     assert m._append(f"y = x + {n + 1}", build=False).color == pal[1]     # ...and keeps cycling evenly
 
 
-# --- save format ---------------------------------------------------------
-def test_save_v2_and_load_v1_v2(tmp_path):
-    path = tmp_path / "f.json"
-    m = EquationManager(path)
+# --- save-game data ------------------------------------------------------
+def test_data_keeps_colors_and_variables_and_fixes_bad_colors():
+    m = EquationManager()
     m.add("x^2")
     m.add("sin(x)")
     m.set_color(1, (1, 2, 3))
     m.toggle(0)
     m.add("a x")
     m.store.set_value("a", 2.5)
-    m.save()
-    data = json.loads(path.read_text())
-    assert data["version"] == 2 and data["variables"] == {"a": {"value": 2.5, "playing": False}}
+    data = m.to_data()
+    assert data["variables"] == {"a": {"value": 2.5, "playing": False, "dir": 1}}
     assert data["equations"][1] == {"text": "sin(x)", "enabled": True, "color": [1, 2, 3]}
-    m2 = EquationManager(path)
-    m2.load()
+    m2 = EquationManager()
+    m2.apply_data(json.loads(json.dumps(data)))
     assert [(e.text, e.enabled, e.color) for e in m2.entries[:2]] == [
         ("x^2", False, m.entries[0].color), ("sin(x)", True, (1, 2, 3))]
-    assert m2.variables == data["variables"]
-    # v1 files (no colour, no variables) still load, with fresh palette colours
-    path.write_text('{"version":1,"equations":[{"text":"x^2","enabled":true},{"text":"x = 2","enabled":false}]}')
-    m2.load()
-    assert [(e.text, e.enabled) for e in m2.entries] == [("x^2", True), ("x = 2", False)]
-    assert [e.color for e in m2.entries] == config.CURVE_PALETTE_AUTO[:2] and m2.variables == {}
-    # bad colours fall back to the palette
-    path.write_text('{"version":2,"equations":[{"text":"x^2","color":[1,2]},{"text":"x = 2","color":[999,0,0]}]}')
-    m2.load()
+    assert m2.store.get("a").value == 2.5
+    # missing or bad colours fall back to the palette
+    m2.apply_data({"equations": [{"text": "x^2", "color": [1, 2]}, {"text": "x = 2", "color": [999, 0, 0]}]})
     assert [e.color for e in m2.entries] == config.CURVE_PALETTE_AUTO[:2]
 
 
 # --- queued layer and progressive load -------------------------------------
-def write_save(path, n):
-    rows = [{"text": f"x = {k % 7 - 3}.{k % 9}", "enabled": True} for k in range(n)]
-    path.write_text(json.dumps({"version": 2, "equations": rows, "variables": {}}))
+def loaded(n):
+    """A manager given n vertical lines the way a save is restored (active built, queued later)."""
+    m = EquationManager()
+    m.apply_data({"equations": [{"text": f"x = {k % 7 - 3}.{k % 9}", "enabled": True} for k in range(n)],
+                  "variables": {}})
+    return m
 
 
 def test_progressive_load(tmp_path):
-    path = tmp_path / "f.json"
-    write_save(path, 20)
-    m = EquationManager(path)
-    m.load()
+    m = loaded(20)
     built = lambda: sum(e.curve is not None for e in m.entries)       # noqa: E731
     assert len(m.entries) == 20 and built() == config.MAX_ACTIVE      # only the active ones, at once
     assert all(e.curve is not None for e in m.active())
@@ -247,10 +238,7 @@ def test_progressive_load(tmp_path):
 
 
 def test_only_active_entries_own_surfaces_and_queued_layer_is_shared(tmp_path):
-    path = tmp_path / "f.json"
-    write_save(path, config.MAX_ACTIVE + 4)
-    m = EquationManager(path)
-    m.load()
+    m = loaded(config.MAX_ACTIVE + 4)
     sw = Swarm(np.random.default_rng(0))
     for _ in range(8):
         m.update(1 / 60, 0.0, sw, np.zeros(2))
@@ -322,10 +310,7 @@ def test_rebuild_limits_two_per_frame_round_robin():
 
 
 def test_on_resize_rebuilds_active_now_and_queued_progressively(tmp_path):
-    path = tmp_path / "f.json"
-    write_save(path, config.MAX_ACTIVE + 3)
-    m = EquationManager(path)
-    m.load()
+    m = loaded(config.MAX_ACTIVE + 3)
     sw = Swarm(np.random.default_rng(0))
     for _ in range(6):
         m.update(1 / 60, 0.0, sw, np.zeros(2))

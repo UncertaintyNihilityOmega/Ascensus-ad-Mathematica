@@ -230,33 +230,28 @@ def test_rebuilds_per_frame_budget():
 
 
 # --- save round trip ---------------------------------------------------------
-def test_save_round_trip_values_and_playing(tmp_path):
-    path = tmp_path / "f.json"
-    m = EquationManager(path)
+def test_save_round_trip_values_and_playing():
+    m = EquationManager()
     m.add("y = a x + b")
     m.store.set_value("a", -2.25)
     m.store.set_value("b", 17.5)
     m.store.set_playing("b", True)
-    m.save()
-    data = json.loads(path.read_text())
-    assert data["variables"] == {"a": {"value": -2.25, "playing": False},
-                                 "b": {"value": 17.5, "playing": True}}
+    data = json.loads(json.dumps(m.to_data()))
+    assert data["variables"] == {"a": {"value": -2.25, "playing": False, "dir": 1},
+                                 "b": {"value": 17.5, "playing": True, "dir": 1}}
     seen = []
-    m2 = EquationManager(path)
+    m2 = EquationManager()
     m2.store.listener = lambda ev, **d: seen.append(ev)
-    m2.load()
+    m2.apply_data(data)
     assert m2.store.names() == ["a", "b"]
     assert m2.store.get("a").value == -2.25 and not m2.store.get("a").playing
     assert m2.store.get("b").value == 17.5 and m2.store.get("b").playing
     assert m2.entries[0].curve is not None and seen == []         # loading is silent
-    # v1 file: variables get the default
-    path.write_text('{"version":1,"equations":[{"text":"a x","enabled":true}]}')
-    m2.load()
+    # no saved variables: they get the default
+    m2.apply_data({"equations": [{"text": "a x", "enabled": True}]})
     assert m2.store.get("a").value == config.VAR_DEFAULT
     # junk: saved variables nobody uses vanish, malformed values are ignored
-    path.write_text(json.dumps({"version": 2, "equations": [{"text": "a x"}],
-                                "variables": {"zz": {"value": 3}, "a": {"value": "oops"}}}))
-    m2.load()
+    m2.apply_data({"equations": [{"text": "a x"}], "variables": {"zz": {"value": 3}, "a": {"value": "oops"}}})
     assert m2.store.names() == ["a"] and m2.store.get("a").value == config.VAR_DEFAULT
 
 

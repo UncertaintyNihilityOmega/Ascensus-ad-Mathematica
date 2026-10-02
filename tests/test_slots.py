@@ -33,7 +33,7 @@ def store(tmp_path):
 
 
 def game(t: float = 75.0, kills: int = 9) -> GameScene:
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
     g.equations.add("y = sin(x)")
     g.game_t, g.kills = t, kills
     return g
@@ -52,7 +52,7 @@ def test_save_and_load_a_slot_with_thumbnail(store):
     assert store.list()[0] is None and len(info.date_text()) == 16
     img = pygame.image.load(str(info.thumb))
     assert img.get_size() == (320, 180)
-    g2 = restore(store.load(2), save_path=None, profile=Profile.in_memory())
+    g2 = restore(store.load(2), profile=Profile.in_memory())
     assert g2.game_t == 75.0 and [e.text for e in g2.equations.entries] == ["y = sin(x)"]
 
 

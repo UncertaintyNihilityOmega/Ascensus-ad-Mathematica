@@ -42,7 +42,7 @@ def text(t):
 
 
 def make(tmp_path, n=3):
-    m = EquationManager(tmp_path / "eq.json")
+    m = EquationManager()
     for k in range(n):
         m._append(f"y = x + {k}", build=False)
     return m, Sidebar(m, InputBox())
@@ -108,7 +108,7 @@ def test_palette_pick_sets_and_saves_color_and_closes(tmp_path):
     sb.open_picker(1)
     assert sb.handle_event(down(sb._picker_cell(9).center))
     assert m.entries[1].color == config.CURVE_PALETTE_20[9] and sb.picker_idx is None
-    assert json.loads((tmp_path / "eq.json").read_text())["equations"][1]["color"] == list(config.CURVE_PALETTE_20[9])
+    assert m.to_data()["equations"][1]["color"] == list(config.CURVE_PALETTE_20[9])
 
 
 # --- parsing helpers ------------------------------------------------------------------------------------
@@ -172,7 +172,7 @@ def test_hex_box_enter_applies_and_saves(tmp_path):
     assert hx.text == "#12ab9f" and m.entries[2].color != (0x12, 0xAB, 0x9F)
     sb.handle_event(key(pygame.K_RETURN))
     assert m.entries[2].color == (0x12, 0xAB, 0x9F) and not hx.focused and sb.picker_idx == 2
-    assert json.loads((tmp_path / "eq.json").read_text())["equations"][2]["color"] == [0x12, 0xAB, 0x9F]
+    assert m.to_data()["equations"][2]["color"] == [0x12, 0xAB, 0x9F]
     assert sb.custom.color == (0x12, 0xAB, 0x9F)
 
 

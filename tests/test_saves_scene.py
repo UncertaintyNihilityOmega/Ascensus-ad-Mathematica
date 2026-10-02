@@ -32,7 +32,7 @@ def store(tmp_path):
 
 
 def game(t: float = 75.0, kills: int = 9) -> GameScene:
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
     g.equations.add("y = sin(x)")
     g.game_t, g.kills = t, kills
     g.paused = True
@@ -51,7 +51,7 @@ class Back:
 
 
 def page(store, g=None, tmp_path=None):
-    return SavesScene(g, Back(), store=store, save_path=None)
+    return SavesScene(g, Back(), store=store)
 
 
 def click(sc, pos):

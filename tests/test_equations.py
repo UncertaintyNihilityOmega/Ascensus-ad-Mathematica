@@ -1,4 +1,4 @@
-"""EquationManager tests (no save/load yet): list ops, active set, status, pulses, t-rebuild."""
+"""EquationManager tests: list ops, active set, status, pulses, t-rebuild, to_data/apply_data."""
 import numpy as np
 import pytest
 
@@ -150,54 +150,28 @@ def test_t_equation_rebuild_rate_and_round_robin():
     assert m.entries[0].parsed.uses_t and not m.entries[2].parsed.uses_t
 
 
-# --- persistence -------------------------------------------------------
-def test_save_load_round_trip(tmp_path):
-    path = tmp_path / "sub" / "equations.json"
-    m = EquationManager(path)
+# --- save-game data (equations live only in runs: to_data / apply_data) -----
+def test_data_round_trip():
+    m = EquationManager()
     for t in ("x^2", "sin(x)", "x = 2"):
         m.add(t)
     m.toggle(1)
     m.move(2, 0)
-    m2 = EquationManager(path)
-    m2.load()
+    m2 = EquationManager()
+    m2.apply_data(m.to_data())
     assert [(e.text, e.enabled) for e in m2.entries] == [("x = 2", True), ("x^2", True), ("sin(x)", False)]
-    assert [e.color for e in m2.entries] == [m.entries[i].color for i in range(3)]   # colours are saved
-    assert all(e.curve is not None for e in m2.entries if e.enabled)      # off rows build when enabled
+    assert [e.color for e in m2.entries] == [e.color for e in m.entries]          # colours travel too
+    assert all(e.curve is not None for e in m2.active())                         # active curves are built
 
 
-def test_every_change_saves(tmp_path):
-    path = tmp_path / "f.json"
-    m = EquationManager(path)
-
-    def saved():
-        import json
-        return [r["text"] for r in json.loads(path.read_text())["equations"]]
-
-    m.add("x^2"); m.add("sin(x)")
-    assert saved() == ["x^2", "sin(x)"]
-    m.replace(0, "cos(x)")
-    assert saved() == ["cos(x)", "sin(x)"]
-    m.move(1, 0)
-    assert saved() == ["sin(x)", "cos(x)"]
-    m.toggle(0)
-    assert '"enabled": false' in path.read_text()
-    m.delete(0)
-    assert saved() == ["cos(x)"]
-
-
-def test_load_skips_bad_entries_and_files(tmp_path):
-    path = tmp_path / "f.json"
-    path.write_text('{"version":1,"equations":[{"text":"x^2","enabled":true},{"text":"sin x"},'
-                    '{"nope":1},"junk",{"text":"x = 2","enabled":false}]}')
-    m = EquationManager(path)
-    m.load()
+def test_apply_data_skips_bad_entries():
+    m = EquationManager()
+    m.apply_data({"equations": [{"text": "x^2", "enabled": True}, {"text": "sin x"}, {"nope": 1}, "junk",
+                                {"text": "x = 2", "enabled": False}]})
     assert [(e.text, e.enabled) for e in m.entries] == [("x^2", True), ("x = 2", False)]
-    for bad in ("not json", '{"equations": 5}', "[]", ""):
-        path.write_text(bad)
-        m.load()
+    for bad in ({"equations": 5}, {}, {"equations": [None]}):
+        m.apply_data(bad)
         assert m.entries == []
-    EquationManager(tmp_path / "missing.json").load()      # no file: fine
-    EquationManager(None).save()                           # no path: no-op
 
 
 # --- named equations (P7) ----------------------------------------------
@@ -225,42 +199,14 @@ def test_named_text_is_full_and_edit_keeps_name_rules():
     assert [e.parsed.name for e in m.entries] == [None, "r2", "r1"]
 
 
-def test_named_save_load_round_trip(tmp_path):
-    path = tmp_path / "f.json"
-    m = EquationManager(path)
+def test_named_data_round_trip():
+    m = EquationManager()
     m.add("eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)")
     m.add("y = x")
-    m2 = EquationManager(path)
-    m2.load()
+    m2 = EquationManager()
+    m2.apply_data(m.to_data())
     assert [e.text for e in m2.entries] == ["eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)", "y = x"]
     assert m2.entries[0].parsed.name == "eq4"
-    # duplicate names in a hand-edited file: the second one is skipped
-    path.write_text('{"version":1,"equations":[{"text":"a: x"},{"text":"a: y"},{"text":"b: y"}]}')
-    m2.load()
+    # duplicate names in a hand-edited save: the second one is skipped
+    m2.apply_data({"equations": [{"text": "a: x"}, {"text": "a: y"}, {"text": "b: y"}]})
     assert [e.text for e in m2.entries] == ["a: x", "b: y"]
-
-
-# --- migration of the old save/formulas.json -----------------------------------------------------
-def test_old_formulas_json_migrates_to_equations_json(tmp_path):
-    import json
-    legacy = tmp_path / "formulas.json"
-    legacy.write_text(json.dumps({"version": 1, "formulas": [
-        {"text": "x^2", "enabled": True}, {"text": "eq1: y = sin(x)", "enabled": False}]}), encoding="utf-8")
-    new = tmp_path / "equations.json"
-    m = EquationManager(new)
-    m.load()
-    assert [e.text for e in m.entries] == ["x^2", "eq1: y = sin(x)"]
-    assert [e.enabled for e in m.entries] == [True, False]
-    assert new.exists() and legacy.exists()                       # the old file stays in place
-    data = json.loads(new.read_text(encoding="utf-8"))
-    assert "equations" in data and "formulas" not in data
-    legacy.write_text("{}", encoding="utf-8")                      # the new file wins from now on
-    m2 = EquationManager(new)
-    m2.load()
-    assert len(m2.entries) == 2
-
-
-def test_no_migration_without_legacy_file(tmp_path):
-    m = EquationManager(tmp_path / "equations.json")
-    m.load()
-    assert m.entries == [] and not (tmp_path / "equations.json").exists()

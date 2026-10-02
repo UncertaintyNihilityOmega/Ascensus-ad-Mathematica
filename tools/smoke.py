@@ -8,9 +8,6 @@ from pathlib import Path
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
-SAVE = Path(tempfile.gettempdir()) / f"ascensus_smoke_{os.getpid()}.json"      # per process: smokes may run concurrently
-os.environ["ASCENSUS_SAVE"] = str(SAVE)         # never touch the real save/equations.json
-SAVE.unlink(missing_ok=True)
 os.environ["ASCENSUS_PROFILE"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_profile_game_{os.getpid()}.json")
 os.environ["ASCENSUS_SETTINGS"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_settings_game_{os.getpid()}.json")
 os.environ["ASCENSUS_SLOTS"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_slots_{os.getpid()}")
@@ -20,6 +17,7 @@ import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
+from ascensus.savegame import restore, snapshot  # noqa: E402
 from ascensus.scenes import QUIT, GameOverScene, GameScene, MenuScene  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -30,6 +28,9 @@ DT = 1 / 60
 # Gates (avg ms, p95 ms) on the realistic mixes. Targets are 8/16 at 1280x720 and 10/16 at 1920x1080;
 # the 1920 gate is looser because the full-screen alpha blits of the curves cost 10-12 ms there.
 PERF_LIMITS = {1280: (8.0, 16.0), 1920: (12.5, 18.0)}
+# Frame-time limits are a benchmark, not a correctness check: they depend on the machine, so they only
+# fail the run when ASCENSUS_PERF_GATE=1 (the numbers are always printed).
+PERF_GATE = os.environ.get("ASCENSUS_PERF_GATE") == "1"
 
 
 def click(scene, rect):
@@ -53,10 +54,6 @@ def mouse(scene, kind, pos, button=1):
     scene.handle_event(pygame.event.Event(kind, pos=pos, button=button, buttons=(1, 0, 0)))
 
 
-def saved_texts():
-    return [r["text"] for r in json.loads(SAVE.read_text())["equations"]]
-
-
 def sidebar_phase(game, screen):
     """Toggle, drag row 3 -> 1, edit, delete, collapse/expand, all via synthetic mouse events."""
     sb, fm = game.sidebar, game.equations
@@ -68,7 +65,7 @@ def sidebar_phase(game, screen):
     # toggle row 0 off, then on again
     mouse(game, pygame.MOUSEBUTTONDOWN, sb.rects(0)["switch"].center)
     mouse(game, pygame.MOUSEBUTTONUP, sb.rects(0)["switch"].center)
-    assert not fm.entries[0].enabled and '"enabled": false' in SAVE.read_text()
+    assert not fm.entries[0].enabled
     mouse(game, pygame.MOUSEBUTTONDOWN, sb.rects(0)["switch"].center)
     assert fm.entries[0].enabled
 
@@ -88,7 +85,6 @@ def sidebar_phase(game, screen):
     mouse(game, pygame.MOUSEBUTTONUP, dst)
     assert not sb.dragging and game.time_scale() == 1.0
     assert [e.text for e in fm.entries] == [base[0], base[3], base[1], base[2]] + base[4:]
-    assert saved_texts() == [e.text for e in fm.entries]
 
     # edit row 2: Edit loads text, Enter replaces in place
     mouse(game, pygame.MOUSEBUTTONDOWN, sb.rects(2)["edit"].center)
@@ -102,7 +98,6 @@ def sidebar_phase(game, screen):
     # delete row 0
     mouse(game, pygame.MOUSEBUTTONDOWN, sb.rects(0)["delete"].center)
     assert len(fm.entries) == n0 - 1 and fm.entries[0].text == base[3]
-    assert saved_texts() == [e.text for e in fm.entries]
 
     # collapse / expand
     mouse(game, pygame.MOUSEBUTTONDOWN, sb.collapse_rect.center)
@@ -112,8 +107,9 @@ def sidebar_phase(game, screen):
     assert not sb.collapsed
     game.draw(screen)
 
-    # a fresh game start loads the saved list
-    assert [e.text for e in GameScene().equations.entries] == [e.text for e in fm.entries]
+    # a save game carries the list (a fresh Play starts empty)
+    assert [e.text for e in restore(snapshot(game)).equations.entries] == [e.text for e in fm.entries]
+    assert GameScene().equations.entries == []
 
 
 def step(scene, screen):
@@ -134,7 +130,7 @@ def check_no_overlap(game) -> None:
 
 def boss_phase(screen) -> None:
     """A boss spawns on schedule (banner), is drawn, and ignores the max-alive cap."""
-    game = GameScene(seed=9, save_path=None)
+    game = GameScene(seed=9)
     game.equations.add("y = x")
     game.player.hp = 1e9
     game.game_t = config.BOSS_INTERVAL - 0.05
@@ -172,7 +168,7 @@ def has_color(screen, rect, color) -> bool:
 def upgrades_phase(screen) -> None:
     """Kills give XP; manual panel clicks and Auto buy upgrades; HUD stack and panel draw at this size."""
     w, h = view.W, view.H
-    game = GameScene(seed=2, save_path=None)
+    game = GameScene(seed=2)
     panel = game.upgrade_panel
     assert all(r.right <= w and r.bottom <= h for r in panel.rects.values())
     assert panel.rects["auto"].right == w - config.HUD_MARGIN and panel.rects["max_hp"].top > h // 2
@@ -225,12 +221,12 @@ def upgrades_phase(screen) -> None:
     click(game, panel.rects["auto"])
     assert not game.upgrades.auto
     game.draw(screen)
-    assert GameScene(save_path=None).upgrades.levels == {"max_hp": 0, "base_dmg": 0, "cooldown": 0}   # per run
+    assert GameScene().upgrades.levels == {"max_hp": 0, "base_dmg": 0, "cooldown": 0}   # per run
 
 
 def named_phase(screen) -> None:
     """Cast named equations by typing: bold name in the row, uniqueness error, Edit keeps the name."""
-    game = GameScene(seed=9, save_path=None)
+    game = GameScene(seed=9)
     eq4 = "eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)"
     type_equation(game, screen, eq4)
     fm = game.equations
@@ -253,9 +249,7 @@ def named_phase(screen) -> None:
 
 def variables_phase(screen) -> None:
     """Cast `a*x`: a variable appears; drag its slider, type a value, press play, animate 150 frames, save, reload."""
-    path = Path(tempfile.gettempdir()) / "ascensus_smoke_vars.json"
-    path.unlink(missing_ok=True)
-    game = GameScene(seed=11, save_path=path)
+    game = GameScene(seed=11)
     game.player.hp = 1e9
     fm, sb, store = game.equations, game.sidebar, game.equations.store
     type_equation(game, screen, "y = a*x")
@@ -297,22 +291,20 @@ def variables_phase(screen) -> None:
     assert 1 <= len(builds) <= secs * config.T_REBUILD_HZ + 2, len(builds)
     print(f"variables phase OK: a={store.get('a').value:.2f}, {len(builds)} rebuilds in {frames} frames, "
           f"{np.mean(times):.2f} ms avg")
-    click(game, sb.var_rects(0)["play"])                 # pause (saves)
+    click(game, sb.var_rects(0)["play"])                 # pause
     click(game, sb.var_rects(0)["play"])                 # play again so the flag is saved as True
-    saved = json.loads(path.read_text())["variables"]["a"]
-    assert saved == {"value": store.get("a").value, "playing": True}, saved
-    fm.save()
-    again = GameScene(seed=11, save_path=path)
+    saved = fm.to_data()["variables"]["a"]
+    assert saved["value"] == store.get("a").value and saved["playing"], saved
+    again = restore(snapshot(game))
     a = again.equations.store.get("a")
     assert a.value == store.get("a").value and a.playing and len(again.equations.entries[0].curve.points) > 50
     again.equations.delete(0)
     assert again.equations.store.names() == [] and again.sidebar.var_rect() is None
-    path.unlink(missing_ok=True)
 
 
 def resize_phase(screen) -> None:
     """Change the window size mid-game: layout, surfaces and curves must follow the view."""
-    game = GameScene(seed=8, save_path=None)
+    game = GameScene(seed=8)
     for text in ("x = 2", "y = x", "y = 2sin(x + t)"):
         game.equations.add(text)
     w0, h0 = view.W, view.H
@@ -354,11 +346,9 @@ def mix_equations(n: int) -> list[str]:
 
 def scale_phase(screen, w: int, h: int) -> None:
     """150 equations: progressive load, perf gates, wheel scroll, colour pick, drag in a scrolled list, reload."""
-    save = Path(tempfile.gettempdir()) / "ascensus_smoke_150.json"
     texts = mix_equations(150)
-    save.write_text(json.dumps({"version": 2, "equations": [{"text": t, "enabled": True} for t in texts],
-                                "variables": {}}))
-    game = GameScene(seed=11, save_path=save)
+    game = GameScene(seed=11)
+    game.equations.apply_data({"equations": [{"text": t, "enabled": True} for t in texts], "variables": {}})
     fm, sb = game.equations, game.sidebar
     game.player.hp = 1e9
     assert len(fm.entries) == 150 and config.MAX_ROWS >= 150
@@ -393,7 +383,7 @@ def scale_phase(screen, w: int, h: int) -> None:
     print(f"perf  : 150 eq {best[0]:.2f} ms avg, {best[1]:.2f} ms p95 (200 enemies, {config.MAX_ACTIVE} active, "
           f"{150 - config.MAX_ACTIVE} queued)")
     lim_avg, lim_p95 = PERF_LIMITS[1280 if w <= 1280 else 1920]
-    assert best[0] < lim_avg and best[1] < lim_p95, f"150-equation frame budget exceeded ({lim_avg}/{lim_p95} ms)"
+    assert not PERF_GATE or (best[0] < lim_avg and best[1] < lim_p95), f"150-equation frame budget exceeded ({lim_avg}/{lim_p95} ms)"
     game.direction_override = None
     game.swarm = type(game.swarm)(game.rng)
 
@@ -417,7 +407,7 @@ def scale_phase(screen, w: int, h: int) -> None:
     cell = sb._picker_cell(17)
     click(game, cell)
     assert sb.picker_idx is None and fm.entries[i].color == config.CURVE_PALETTE_20[17]
-    assert json.loads(save.read_text())["equations"][i]["color"] == list(config.CURVE_PALETTE_20[17])
+    assert fm.to_data()["equations"][i]["color"] == list(config.CURVE_PALETTE_20[17])
     click(game, sb.rects(i)["swatch"])
     key(game, pygame.K_ESCAPE)
     assert sb.picker_idx is None and not game.paused
@@ -442,11 +432,10 @@ def scale_phase(screen, w: int, h: int) -> None:
     assert sb.scroll > s0 and sb.dragging
     mouse(game, pygame.MOUSEBUTTONUP, (src[0], sb.eq_rect().bottom - 10))
 
-    # reload: order, colours and count survive the round trip
-    game2 = GameScene(seed=12, save_path=save)
+    # a save round trip keeps order, colours and count
+    game2 = restore(snapshot(game))
     assert [e.text for e in game2.equations.entries] == [e.text for e in fm.entries]
     assert [e.color for e in game2.equations.entries] == [e.color for e in fm.entries]
-    save.unlink(missing_ok=True)
 
 
 def menu_pause_pages_phase(screen, w: int, h: int) -> None:
@@ -479,7 +468,7 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
     assert MenuScene().buttons["Quit"].rect.bottom < view.H
 
     # from pause: Stats / Settings / Library return to the SAME paused game
-    game = GameScene(seed=7, save_path=None)
+    game = GameScene(seed=7)
     game.equations.add("y = x")
     game.equations.add("x^2 + y^2 = 4")
     for _ in range(120):
@@ -599,10 +588,8 @@ def run(w: int, h: int) -> None:
     print(f"play  : {np.mean(times):.2f} ms avg, p95 {np.percentile(times, 95):.2f}, "
           f"kills={game.kills}, enemies={len(game.swarm)}")
 
-    # Sidebar: toggle, drag reorder, edit, delete, collapse, persistence
-    SAVE.unlink(missing_ok=True)
+    # Sidebar: toggle, drag reorder, edit, delete, collapse
     sidebar_phase(GameScene(seed=6), screen)
-    SAVE.unlink(missing_ok=True)
     named_phase(screen)
     variables_phase(screen)
     resize_phase(screen)
@@ -634,7 +621,7 @@ def run(w: int, h: int) -> None:
     spec = ("1 = x^2 + y^2", "tan(sqrt(x^2 + y^2)) = y / x", "y = 2sin(x + t)", "y = x")
     brutal = ("1 = x^2 + y^2", "tan(sqrt(x^2 + y^2)) = y / x", "y = 2sin(x + t)", "x^2 + y^2 = (t % 5)^2")
     for name, texts in (("spec", spec), ("brutal", brutal)):
-        game = GameScene(seed=4, save_path=None)
+        game = GameScene(seed=4)
         game.show_fps = True
         game.player.hp = 1e9
         for text in texts:
@@ -656,12 +643,12 @@ def run(w: int, h: int) -> None:
         print(f"perf  : {name:6s} {avg:.2f} ms avg, {p95:.2f} ms p95 (200 enemies, 4 equations)")
         if name == "spec":                                   # "brutal" is a stress print, not a gate
             lim_avg, lim_p95 = PERF_LIMITS[1280 if w <= 1280 else 1920]
-            assert avg < lim_avg and p95 < lim_p95, f"frame budget exceeded ({lim_avg}/{lim_p95} ms)"
+            assert not PERF_GATE or (avg < lim_avg and p95 < lim_p95), f"frame budget exceeded ({lim_avg}/{lim_p95} ms)"
 
     scale_phase(screen, w, h)
 
     # Death -> GameOver -> Retry / Menu
-    game = GameScene(seed=5, save_path=None)
+    game = GameScene(seed=5)
     game.swarm.spawn(game.player.pos, 0.0)
     game.swarm.pos[:] = game.player.pos
     game.player.hp = 1.0
@@ -743,7 +730,7 @@ def achievements_game_phase(screen) -> None:
     from ascensus.profile import Profile
     path = Path(tempfile.gettempdir()) / "ascensus_smoke_profile_run.json"
     path.unlink(missing_ok=True)
-    game = GameScene(seed=4, save_path=None, profile=Profile(path))
+    game = GameScene(seed=4, profile=Profile(path))
     game.player.hp = 1e9
     game.direction_override = (0.0, 0.0)
     for text in ("y = sin(x + t)", "y = cos(x)", "y = tan(x)", "x^2 + y^2 = 9"):

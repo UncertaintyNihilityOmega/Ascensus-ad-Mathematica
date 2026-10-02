@@ -7,7 +7,6 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _TMP = Path(tempfile.gettempdir())
-os.environ.setdefault("ASCENSUS_SAVE", str(_TMP / f"ascensus_smoke_p20_eq_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_PROFILE", str(_TMP / f"ascensus_smoke_p20_profile_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_SETTINGS", str(_TMP / f"ascensus_smoke_p20_settings_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_SLOTS", str(_TMP / f"ascensus_smoke_p20_slots_{os.getpid()}"))
@@ -45,7 +44,7 @@ def _same(a: dict, b: dict) -> None:
 
 def _play(screen) -> GameScene:
     """A game that has seen a few hundred frames: equations, a variable, enemies, a boss, XP."""
-    game = GameScene(seed=11, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=11, profile=Profile.in_memory())
     for text in ("y = a*sin(x)", "y = x^2/8 - 3", "y = 2cos(x + t)"):
         game.equations.add(text)
     game.equations.set_color(1, (250, 120, 30))
@@ -66,7 +65,7 @@ def _play(screen) -> GameScene:
 def _saves_page(screen, w: int, h: int, store: SlotStore, game) -> SavesScene:
     view.set_size(w, h)
     screen = pygame.display.set_mode((w, h))
-    page = SavesScene(game, lambda: game, store=store, save_path=None)
+    page = SavesScene(game, lambda: game, store=store)
     widgets.reset_overflow()
     for _ in range(5):
         _step(page, screen)
@@ -96,7 +95,7 @@ def phase(screen) -> None:
     assert page.dialog == ("overwrite", 2)
     _click(page, page.dialog_rects["cancel"].center)
     snap = snapshot(game)
-    again = restore(store.load(2), save_path=None, profile=Profile.in_memory())
+    again = restore(store.load(2), profile=Profile.in_memory())
     saved = store.load(2)
     saved.pop("saved_at", None)
     _same(saved, snap)                                       # what the slot holds is the paused game
@@ -127,7 +126,7 @@ def phase(screen) -> None:
     assert store.autosave(game) and store.has_autosave()
     info = store.autosave_info()
     assert abs(info.game_t - game.game_t) < 1e-9 and info.thumb is not None
-    cont = restore(store.load_autosave(), save_path=None, profile=Profile.in_memory())
+    cont = restore(store.load_autosave(), profile=Profile.in_memory())
     _same(snapshot(cont), snapshot(game))
     store.delete_autosave()
     assert not store.has_autosave() and not (slots_dir / "autosave.png").exists()
@@ -226,13 +225,11 @@ def glue_phase(screen) -> None:
         assert isinstance(cont.next_scene, GameOverScene) and not default.has_autosave()
     print("  menu / pause / continue / autosave / undo glue OK at 800x600, 1280x720, 1920x1080")
     shutil.rmtree(default.dir, ignore_errors=True)
-    config.SAVE_PATH.unlink(missing_ok=True)                 # Continue wrote its equations here; later phases start empty
 
 
 def main() -> None:
     pygame.init()
     phase(pygame.display.set_mode((1280, 720)))
-    Path(os.environ["ASCENSUS_SAVE"]).unlink(missing_ok=True)
     print("smoke_p20 OK")
 
 

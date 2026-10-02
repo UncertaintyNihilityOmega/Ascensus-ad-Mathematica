@@ -309,7 +309,6 @@ class Sidebar:
         if f.focused and e.type in (pygame.KEYDOWN, pygame.KEYUP, pygame.TEXTINPUT):
             if e.type != pygame.KEYUP and f.handle_event(e) and self.var_edit in store:
                 store.set_value(self.var_edit, f.value)          # Enter applied
-                self.manager.save()
             self._after_field()
             return True                                          # typing owns the keyboard
         if self.var_drag is not None and e.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP):
@@ -322,7 +321,6 @@ class Sidebar:
             if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
                 self.var_drag = None
                 self._slider.dragging = False
-                self.manager.save()
             return True
         if e.type == pygame.MOUSEWHEEL:
             vr = self.var_rect()
@@ -350,7 +348,6 @@ class Sidebar:
             f.handle_event(e)
         elif parts["play"].collidepoint(e.pos):
             store.toggle_play(name)
-            self.manager.save()
         elif parts["slider"].collidepoint(e.pos):
             store.set_playing(name, False)                       # grabbing the slider takes over
             sl = self._aim_slider(i, name)

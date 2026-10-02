@@ -1,9 +1,7 @@
 """EquationEntry + EquationManager: list ops, active set, queued layer, pulses, damage, rebuilds, save v2."""
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 
@@ -119,45 +117,10 @@ def _read_color(value) -> tuple[int, int, int] | None:
     return (r, g, b) if all(0 <= c <= 255 for c in (r, g, b)) else None
 
 
-# Default for `save_path` parameters: read config.SAVE_PATH when called, not at import, so tests that
-# redirect config.SAVE_PATH can never write the real save/equations.json.
-USE_CONFIG = "config"
-
-
-def resolve_save_path(path: "Path | None | str") -> "Path | None":
-    """`USE_CONFIG` -> the current config.SAVE_PATH; anything else (a Path or None) unchanged."""
-    return config.SAVE_PATH if path == USE_CONFIG else path
-
-
-# --- migration of the pre-rename save (save/formulas.json, key "formulas") ----------------------
-LEGACY_SAVE_NAME = "formulas.json"
-LEGACY_KEY = "formulas"
-
-
-def migrate_legacy_save(new_path: Path) -> bool:
-    """One-time migration: if `new_path` is missing and a legacy formulas.json sits next to it, write
-    the equations.json equivalent (the old file stays in place). Returns True when it migrated."""
-    legacy = new_path.with_name(LEGACY_SAVE_NAME)
-    if new_path.exists() or legacy == new_path or not legacy.exists():
-        return False
-    try:
-        data = json.loads(legacy.read_text(encoding="utf-8"))
-        if LEGACY_KEY in data and "equations" not in data:
-            data["equations"] = data.pop(LEGACY_KEY)
-        new_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = new_path.with_name(new_path.name + ".tmp")
-        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        tmp.replace(new_path)
-        return True
-    except (OSError, ValueError, TypeError):
-        return False
-
-
 class EquationManager:
     """Ordered list of equations; the first MAX_ACTIVE enabled ones fire."""
 
-    def __init__(self, save_path: Path | None = None) -> None:
-        self.save_path = save_path
+    def __init__(self) -> None:
         self.entries: list[EquationEntry] = []
         self._t = 0.0
         self._rr = 0
@@ -180,11 +143,10 @@ class EquationManager:
         return min(config.CURVE_PALETTE_AUTO, key=lambda c: counts[c])
 
     def set_color(self, i: int, color: tuple[int, int, int]) -> None:
-        """Give row i a new curve colour (the surface re-renders; saved)."""
+        """Give row i a new curve colour (the surface re-renders)."""
         e = self.entries[i]
         e.color = tuple(int(c) for c in color)
         e.surface, e.tiles, e.stale = None, None, None
-        self.save()
 
     def _check_name(self, parsed: ParsedEquation, skip: int | None = None) -> None:
         """Equation names are unique (case-insensitive); `skip` is a row being re-parsed."""
@@ -247,7 +209,6 @@ class EquationManager:
     def add(self, text: str) -> EquationEntry:
         """Parse and append an equation; raises EquationError on bad text or a full list."""
         e = self._append(text)
-        self.save()
         return e
 
     def replace(self, i: int, text: str) -> None:
@@ -260,7 +221,6 @@ class EquationManager:
         e.pulse_timer, e.flash, e.rebuild_timer = config.FIRST_PULSE_DELAY, 0.0, 0.0
         self._sync_vars()
         self._rebuild(e)
-        self.save()
 
     def delete(self, i: int) -> None:
         """Remove row i; the entry (and the variables only it used) is remembered for undo_delete()."""
@@ -270,7 +230,6 @@ class EquationManager:
         removed = {n: v for n, v in before.items() if n not in self.store.vars}
         self._undo.append((entry, i, removed))
         del self._undo[:-config.UNDO_MAX]
-        self.save()
 
     @property
     def can_undo(self) -> bool:
@@ -303,17 +262,14 @@ class EquationManager:
                 self.store.values[name] = var.value
         entry.curve, entry.surface, entry.tiles, entry.stale = None, None, None, None
         entry.var_dirty, entry.rebuild_timer = False, 0.0
-        self.save()
         return entry
 
     def move(self, src: int, dst: int) -> None:
         """Move row src so it ends up at index dst."""
         self.entries.insert(dst, self.entries.pop(src))
-        self.save()
 
     def toggle(self, i: int) -> None:
         self.entries[i].enabled = not self.entries[i].enabled
-        self.save()
 
     def on_resize(self) -> None:
         """The view changed: active curves rebuild now, the rest progressively (2 per frame)."""
@@ -325,56 +281,25 @@ class EquationManager:
                 e.curve, e.surface, e.tiles, e.stale = None, None, None, None
         self._layer = self._layer_sig = None
 
-    # --- persistence -----------------------------------------------------
-    def save(self) -> None:
-        """Write {"version":2,"equations":[{text,enabled,color}],"variables":{name:{value,playing}}}.
-
-        No-op without a save_path."""
-        if self.save_path is None:
-            return
-        data = {"version": 2,
-                "equations": [{"text": e.text, "enabled": e.enabled, "color": list(e.color)}
-                             for e in self.entries],
-                "variables": self.store.to_dict()}
-        try:
-            self.save_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.save_path.with_name(self.save_path.name + ".tmp")
-            tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
-            tmp.replace(self.save_path)
-        except OSError:
-            pass                        # a failed save must never crash the game
-
-    def load(self) -> None:
-        """Replace entries from disk (v1 and v2); unreadable files and unparsable entries are skipped.
-
-        Active curves build at once; queued ones build progressively in update().
-        """
-        self.entries = []
-        self._undo.clear()
-        self.store.sync([], quiet=True)
-        if self.save_path is None:
-            return
-        if not self.save_path.exists():
-            migrate_legacy_save(self.save_path)
-        if not self.save_path.exists():
-            return
-        try:
-            data = json.loads(self.save_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return
-        self.apply_data(data)
+    # --- save games -----------------------------------------------------
+    def to_data(self) -> dict:
+        """The list as a save-shaped dict (the inverse of apply_data): equations in order, variables."""
+        return {"equations": [{"text": e.text, "enabled": bool(e.enabled), "color": list(e.color)}
+                              for e in self.entries],
+                "variables": {n: {"value": float(v.value), "playing": bool(v.playing), "dir": int(v.dir)}
+                              for n, v in self.store.vars.items()}}
 
     def apply_data(self, data: dict) -> None:
         """Replace the list from a save-shaped dict {"equations": [{text, enabled, color}], "variables": {...}}.
 
-        Used by load() and by savegame.restore(). Unparsable entries are skipped; no file is written (call
-        save() for that). Variable `dir` (the ping-pong direction) is restored when present.
+        Used by savegame.restore(). Unparsable entries are skipped. Variable `dir` (the ping-pong
+        direction) is restored when present.
         """
         self.entries = []
         self._undo.clear()
         self.store.sync([], quiet=True)
         try:
-            rows = data["equations"] if "equations" in data else data[LEGACY_KEY]
+            rows = data["equations"]
             for row in rows:
                 try:
                     self._append(str(row["text"]), bool(row.get("enabled", True)),

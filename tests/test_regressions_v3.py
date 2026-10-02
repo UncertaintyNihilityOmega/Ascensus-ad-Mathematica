@@ -43,7 +43,7 @@ def key(scene, k):
 
 # --- bug 1: pause -> Settings -> Back must not flash between the two scenes ----------------------
 def test_pause_settings_back_stays_on_game():
-    game = GameScene(seed=1, save_path=None)
+    game = GameScene(seed=1)
     key(game, pygame.K_ESCAPE)
     assert game.paused
     click(game, game.settings_btn.rect.center)
@@ -59,7 +59,7 @@ def test_pause_settings_back_stays_on_game():
 
 
 def test_pause_library_back_stays_on_game():
-    game = GameScene(seed=1, save_path=None)
+    game = GameScene(seed=1)
     key(game, pygame.K_ESCAPE)
     click(game, game.library_btn.rect.center)
     page = take_next(game)
@@ -130,7 +130,7 @@ def test_no_duplicate_top_level_defs():
 
 # --- bug 2: the colour popup must work (and draw) over the VARIABLES section --------------------
 def test_color_picker_over_variables_picks_color():
-    game = GameScene(seed=2, save_path=None)
+    game = GameScene(seed=2)
     for text in ("a*x", "b*x", "c*x", "x^2", "x^3", "sin(x)", "cos(x)", "x"):
         game.equations.add(text) if hasattr(game, "equations") else game.equations.add(text)
     mgr = getattr(game, "equations", None) or game.equations
@@ -155,7 +155,7 @@ def test_color_picker_over_variables_picks_color():
 
 
 def test_picker_blocks_clicks_to_the_upgrade_panel_and_esc_closes():
-    game = GameScene(seed=2, save_path=None)
+    game = GameScene(seed=2)
     mgr = getattr(game, "equations", None) or game.equations
     mgr.add("x")
     game.sidebar.open_picker(0)
@@ -204,7 +204,7 @@ def test_freetype_text_has_no_gaps_inside_words():
 def test_input_box_and_upgrade_panel_do_not_overlap(size, collapsed):
     pygame.display.set_mode(size)
     view.set_size(*size)
-    game = GameScene(seed=3, save_path=None)
+    game = GameScene(seed=3)
     game.sidebar.collapsed = collapsed
     game.update(1 / 60)                                   # collapse state change re-lays-out
     game.on_resize()
@@ -231,14 +231,10 @@ def test_text_ink_is_not_cut_off(size):
     assert ink.height >= img.get_height() * 0.6, (ink, img.get_size())  # whole glyphs, not a sliver
 
 
-# --- default save paths are read when called, so redirected tests never write the real save -----------
-def test_restore_and_game_use_the_current_save_path(tmp_path, monkeypatch):
-    from ascensus.savegame import restore, snapshot
-
-    monkeypatch.setattr(config, "SAVE_PATH", tmp_path / "redirected.json")
+# --- a new run starts empty and never writes an equations file (equations live only in runs/saves) ----
+def test_new_game_starts_without_equations(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     g = GameScene(seed=1, profile=Profile.in_memory())
-    assert g.equations.save_path == tmp_path / "redirected.json"
-    src = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
-    src.equations.add("y = x")
-    restored = restore(snapshot(src), profile=Profile.in_memory())
-    assert restored.equations.save_path == tmp_path / "redirected.json"
+    assert g.equations.entries == [] and not g.equations.store.vars
+    g.equations.add("y = a x")
+    assert list(tmp_path.iterdir()) == []                     # nothing written next to the game

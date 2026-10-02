@@ -31,7 +31,7 @@ def _pg():
 
 
 def make(t: float = 83.0) -> GameScene:
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
     g.equations.add("eq1: y = a*x")
     g.equations.add("y = sin(x)")
     g.game_t = t
@@ -189,7 +189,7 @@ def test_autosave_every_sixty_seconds_of_play_not_while_paused():
 
 
 def test_new_run_does_not_autosave_and_game_over_deletes_it():
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
     assert not g.autosave() and not SlotStore().has_autosave()          # nothing to continue at 00:00
     g.game_t = 30.0
     assert g.autosave() and SlotStore().has_autosave()
@@ -216,7 +216,7 @@ def test_speed_is_saved_and_restored():
     g.speed = 3
     data = snapshot(g)
     assert data["speed"] == 3
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     assert g2.speed == 3 and isinstance(g2.speed, int)
 
 

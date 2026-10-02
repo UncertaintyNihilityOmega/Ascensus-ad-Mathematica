@@ -52,7 +52,7 @@ def _render(scene, screen, frames=2):
 
 
 def _busy_game():
-    game = GameScene(seed=5, save_path=None)
+    game = GameScene(seed=5)
     for text in EQUATIONS:
         game.equations.add(text)
     assert len(game.equations.entries) == 12 and len(game.sidebar.variable_names()) >= 4

@@ -8,7 +8,6 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _tmp = Path(tempfile.gettempdir())
-os.environ.setdefault("ASCENSUS_SAVE", str(_tmp / f"ascensus_smoke_p19_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_PROFILE", str(_tmp / f"ascensus_smoke_p19_profile_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_SETTINGS", str(_tmp / f"ascensus_smoke_p19_settings_{os.getpid()}.json"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -53,7 +52,7 @@ def mouse_phase(screen) -> None:
     controls.window_active = lambda: True
     try:
         settings.set_value("MOVE_MODE", "Mouse")
-        game = GameScene(seed=21, save_path=None, profile=Profile.in_memory())
+        game = GameScene(seed=21, profile=Profile.in_memory())
         game.player.hp = 1e9
         cursor[:] = [cx + 300, cy]
         p0 = game.player.pos.copy()
@@ -94,7 +93,7 @@ def mouse_phase(screen) -> None:
 
 def speed_phase(screen) -> None:
     """The speed button cycles 1 -> 2 -> 3 -> 1; fast play is split into substeps of at most 1/30 s."""
-    game = GameScene(seed=22, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=22, profile=Profile.in_memory())
     game.player.hp = 1e9
     game.equations.add("y = x")
     assert game.speed == 1
@@ -128,7 +127,7 @@ def controls_tab_phase(screen) -> None:
     _click(page, row.center)
     _key(page, pygame.K_k)
     assert config.DASH_KEY == "k" and controls.dash_key_code() == pygame.K_k
-    game = GameScene(seed=23, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=23, profile=Profile.in_memory())
     _key(game, pygame.K_j)
     assert game.player.dash_count == 0
     _key(game, pygame.K_k)

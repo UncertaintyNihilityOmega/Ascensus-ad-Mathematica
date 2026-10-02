@@ -12,7 +12,6 @@ from typing import Callable
 import pygame
 
 from . import config, view
-from .equations import USE_CONFIG, resolve_save_path
 from .savegame import SlotInfo, SlotStore, restore
 from .scenes import Scene
 from .stats import mmss
@@ -51,13 +50,11 @@ def _draw_button(surf: pygame.Surface, rect: pygame.Rect, label: str, enabled: b
 class SavesScene(Scene):
     """Slots 1..6 as cards. `game` is the paused GameScene (or None from the main menu)."""
 
-    def __init__(self, game, back: Callable[[], Scene], store: SlotStore | None = None,
-                 save_path: Path | None | str = USE_CONFIG) -> None:
+    def __init__(self, game, back: Callable[[], Scene], store: SlotStore | None = None) -> None:
         super().__init__()
         self.game = game
         self.back = back
         self.store = store if store is not None else SlotStore()
-        self.save_path = resolve_save_path(save_path)
         self.back_btn = Button(pygame.Rect(0, 0, *config.PAGE_BACK_SIZE), "Back", size=config.BODY_FONT + 2)
         self.infos: list[SlotInfo | None] = []
         self._images: dict[int, pygame.Surface | None] = {}        # slot -> thumbnail png (loaded lazily)
@@ -100,7 +97,7 @@ class SavesScene(Scene):
         try:
             if data is None:
                 raise ValueError("empty slot")
-            scene = restore(data, save_path=self.save_path)
+            scene = restore(data)
         except ValueError:
             self._say(f"Could not load slot {slot}", True)
             return False

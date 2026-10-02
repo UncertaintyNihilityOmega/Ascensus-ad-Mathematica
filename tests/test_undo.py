@@ -24,7 +24,7 @@ def _pg():
 
 
 def mgr(*texts: str) -> EquationManager:
-    m = EquationManager(None)
+    m = EquationManager()
     for t in texts:
         m.add(t)
     return m
@@ -122,18 +122,6 @@ def test_loading_or_replacing_the_list_clears_the_stack():
     m.delete(0)
     m.apply_data({"equations": [{"text": "y = 9", "enabled": True, "color": [1, 2, 3]}], "variables": {}})
     assert not m.can_undo and [e.text for e in m.entries] == ["y = 9"]
-
-
-def test_undo_saves_to_disk(tmp_path):
-    p = tmp_path / "eq.json"
-    m = EquationManager(p)
-    m.add("y = 1")
-    m.add("y = 2")
-    m.delete(0)
-    m.undo_delete()
-    m2 = EquationManager(p)
-    m2.load()
-    assert [e.text for e in m2.entries] == ["y = 1", "y = 2"]
 
 
 # --- the toast ------------------------------------------------------------------------------------

@@ -26,7 +26,7 @@ def _pg():
 
 
 def make(profile=None):
-    return GameScene(seed=1, save_path=None, profile=profile or Profile.in_memory())
+    return GameScene(seed=1, profile=profile or Profile.in_memory())
 
 
 def key(scene, k):
@@ -121,7 +121,7 @@ def test_shared_profile_accessor_and_injection(tmp_path):
     p = Profile(tmp_path / "p.json")
     set_profile(p)
     assert get_profile() is p
-    assert GameScene(seed=1, save_path=None).profile is p
+    assert GameScene(seed=1).profile is p
 
 
 def test_variable_events_reach_the_tracker():

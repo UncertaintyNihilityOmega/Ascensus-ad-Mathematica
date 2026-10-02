@@ -28,7 +28,7 @@ def _pg():
 
 def make_game(frames: int = 120) -> GameScene:
     """A game with equations, variables, a boss, upgrades and some play behind it."""
-    g = GameScene(seed=3, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=3, profile=Profile.in_memory())
     g.equations.add("y = a*sin(x)")
     g.equations.add("name: x^2 - 4")
     g.equations.add("y = b*x")
@@ -67,7 +67,7 @@ def test_snapshot_is_json_and_versioned():
 def test_round_trip_snapshot_restore_snapshot():
     g = make_game()
     data = json.loads(json.dumps(snapshot(g)))
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     assert snapshot(g2) == data
     assert g2.game_t == g.game_t and g2.kills == g.kills and g2.equations_cast == 7
     assert np.array_equal(g2.player.pos, g.player.pos) and g2.player.hp == g.player.hp
@@ -83,7 +83,7 @@ def test_swarm_with_bosses_round_trips():
     assert g.swarm.boss.any() and len(g.swarm) > 20
     g.swarm.bosses_killed, g.swarm.damage_dealt = 2, 123.5
     data = json.loads(json.dumps(snapshot(g)))
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     assert len(g2.swarm) == len(g.swarm)
     for name in ("pos", "hp", "max_hp", "dmg", "speed", "flash", "radius", "boss"):
         assert np.array_equal(getattr(g2.swarm, name), getattr(g.swarm, name)), name
@@ -93,8 +93,8 @@ def test_swarm_with_bosses_round_trips():
 
 
 def test_empty_swarm_round_trips():
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
-    g2 = restore(json.loads(json.dumps(snapshot(g))), save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
+    g2 = restore(json.loads(json.dumps(snapshot(g))), profile=Profile.in_memory())
     assert len(g2.swarm) == 0 and g2.swarm.pos.shape == (0, 2)
     g2.update(1 / 60)
 
@@ -103,7 +103,7 @@ def test_variables_keep_value_play_state_and_direction():
     g = make_game()
     data = json.loads(json.dumps(snapshot(g)))
     assert data["variables"]["a"] == {"value": 2.5, "playing": True, "dir": -1}
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     a = g2.equations.store.get("a")
     assert (a.value, a.playing, a.dir) == (2.5, True, -1)
     assert g2.equations.store.values["a"] == 2.5
@@ -113,7 +113,7 @@ def test_variables_keep_value_play_state_and_direction():
 def test_equations_colours_and_enabled_survive():
     g = make_game()
     data = json.loads(json.dumps(snapshot(g)))
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     rows = [(e.text, e.enabled, e.color) for e in g2.equations.entries]
     assert rows == [(e.text, e.enabled, e.color) for e in g.equations.entries]
     assert rows[0][2] == (12, 200, 90) and rows[2][1] is False
@@ -121,24 +121,16 @@ def test_equations_colours_and_enabled_survive():
     assert g2.equations.active()[0].curve is not None               # active curves are built
 
 
-def test_restore_writes_the_equations_file(tmp_path):
-    path = tmp_path / "eq.json"
-    g2 = restore(snapshot(make_game()), save_path=path, profile=Profile.in_memory())
-    saved = json.loads(path.read_text())
-    assert [r["text"] for r in saved["equations"]] == [e.text for e in g2.equations.entries]
-    assert g2.equations.save_path == path
-
-
 def test_restore_replaces_the_current_equations():
     data = snapshot(make_game())
-    other = GameScene(seed=2, save_path=None, profile=Profile.in_memory())
+    other = GameScene(seed=2, profile=Profile.in_memory())
     other.equations.add("y = 3")
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     assert "y = 3" not in [e.text for e in g2.equations.entries]
 
 
 def test_restored_game_continues_and_draws():
-    g2 = restore(snapshot(make_game()), save_path=None, profile=Profile.in_memory())
+    g2 = restore(snapshot(make_game()), profile=Profile.in_memory())
     for _ in range(30):
         g2.update(1 / 60)
     g2.draw(pygame.display.get_surface())
@@ -151,7 +143,7 @@ def test_speed_is_read_defensively():
     g.speed = 2.0
     data = snapshot(g)
     assert data["speed"] == 2.0
-    g2 = restore(data, save_path=None, profile=Profile.in_memory())
+    g2 = restore(data, profile=Profile.in_memory())
     if hasattr(g2, "speed"):
         assert g2.speed == 2.0
 
@@ -171,13 +163,13 @@ def test_corrupt_data_raises_value_error(mutate):
     data = json.loads(json.dumps(snapshot(make_game(10))))
     mutate(data)
     with pytest.raises(ValueError):
-        restore(data, save_path=None, profile=Profile.in_memory())
+        restore(data, profile=Profile.in_memory())
 
 
 def test_non_dict_raises_value_error():
     for bad in (None, [], "x", 3):
         with pytest.raises(ValueError):
-            restore(bad, save_path=None)
+            restore(bad)
 
 
 def test_thumbnail_is_320x180_with_curves_but_no_enemies():
@@ -196,7 +188,7 @@ def test_thumbnail_is_320x180_with_curves_but_no_enemies():
 
 def test_thumbnail_non_16_9_window_is_cropped_not_squashed():
     view.set_size(900, 900)
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
     g.equations.add("y = x")
     assert render_thumbnail(g).get_size() == (320, 180)
     view.set_size(1280, 720)

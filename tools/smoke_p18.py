@@ -11,7 +11,6 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _tmp = Path(tempfile.gettempdir())
-os.environ.setdefault("ASCENSUS_SAVE", str(_tmp / f"ascensus_smoke_p18_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_PROFILE", str(_tmp / f"ascensus_smoke_p18_profile_{os.getpid()}.json"))
 os.environ.setdefault("ASCENSUS_SETTINGS", str(_tmp / f"ascensus_smoke_p18_settings_{os.getpid()}.json"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -56,7 +55,7 @@ def phase(screen: pygame.Surface) -> None:
     pygame.mouse.set_pos((w - 5, h - 5))
     _draw_all_icons(screen)
 
-    game = GameScene(seed=3, save_path=None)
+    game = GameScene(seed=3)
     if hasattr(game, "on_resize"):
         game.on_resize()
     for text in ("x^2", "sin(x)", "a*x", "cos(x)"):

@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 
 _tmp = Path(tempfile.gettempdir()) / "ascensus_pytest"
-os.environ["ASCENSUS_SAVE"] = str(_tmp / "equations.json")
 os.environ["ASCENSUS_SETTINGS"] = str(_tmp / "settings.json")
 os.environ["ASCENSUS_PROFILE"] = str(_tmp / "profile.json")
 os.environ["ASCENSUS_SLOTS"] = str(_tmp / "slots")      # autosaves of test games never touch save/slots
@@ -35,7 +34,6 @@ def _real_save_untouched():
 
 @pytest.fixture(autouse=True)
 def _fresh_saves(tmp_path, monkeypatch):
-    """Every test gets its own empty equations file and slots folder (never the real ones)."""
+    """Every test gets its own empty slots folder (never the real one)."""
     from ascensus import config
-    monkeypatch.setattr(config, "SAVE_PATH", tmp_path / "equations.json")
     monkeypatch.setattr(config, "SLOTS_PATH", tmp_path / "slots")

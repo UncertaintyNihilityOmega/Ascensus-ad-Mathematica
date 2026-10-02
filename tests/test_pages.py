@@ -41,7 +41,7 @@ def key(scene, k):
 
 
 def make_game():
-    return GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    return GameScene(seed=1, profile=Profile.in_memory())
 
 
 # -- stats -----------------------------------------------------------------------------------------------

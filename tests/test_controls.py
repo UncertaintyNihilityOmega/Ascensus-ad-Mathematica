@@ -40,7 +40,7 @@ def cursor(monkeypatch):
 
 def game_in_mouse_mode():
     settings.set_value("MOVE_MODE", "Mouse")
-    game = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=1, profile=Profile.in_memory())
     game.player.hp = 1e9
     return game
 
@@ -186,7 +186,7 @@ def test_right_click_over_ui_or_in_wasd_mode_does_not_dash(cursor):
 
 
 def test_dash_key_j_default_rebound_and_r_no_longer_dashes():
-    game = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=1, profile=Profile.in_memory())
     game.handle_event(ev(pygame.KEYDOWN, key=pygame.K_r, mod=0, unicode="r"))
     assert game.player.dash_count == 0
     game.handle_event(ev(pygame.KEYDOWN, key=pygame.K_j, mod=0, unicode="j"))
@@ -201,7 +201,7 @@ def test_dash_key_j_default_rebound_and_r_no_longer_dashes():
 
 
 def test_dash_key_ignored_while_typing():
-    game = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=1, profile=Profile.in_memory())
     game.handle_event(ev(pygame.KEYDOWN, key=pygame.K_RETURN, mod=0, unicode=""))
     assert game.input.focused
     game.handle_event(ev(pygame.KEYDOWN, key=pygame.K_j, mod=0, unicode="j"))
@@ -209,7 +209,7 @@ def test_dash_key_ignored_while_typing():
 
 
 def test_wasd_mode_still_moves_with_direction_override():
-    game = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    game = GameScene(seed=1, profile=Profile.in_memory())
     game.direction_override = (1.0, 0.0)
     run(game, 60)
     assert game.player.pos[0] == pytest.approx(config.PLAYER_SPEED, rel=0.01)

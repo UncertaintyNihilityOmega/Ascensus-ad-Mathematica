@@ -11,7 +11,6 @@ MAX_DT = 0.05
 
 # Paths
 ROOT = Path(__file__).resolve().parent.parent
-SAVE_PATH = Path(os.environ.get("ASCENSUS_SAVE", ROOT / "save" / "equations.json"))
 PROFILE_PATH = Path(os.environ.get("ASCENSUS_PROFILE", ROOT / "save" / "profile.json"))
 SETTINGS_PATH = Path(os.environ.get("ASCENSUS_SETTINGS", ROOT / "save" / "settings.json"))
 ICON_PATH = ROOT / "assets" / "icon.png"

@@ -26,7 +26,7 @@ def _env():
 
 
 def make():
-    g = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    g = GameScene(seed=1, profile=Profile.in_memory())
     g.player.hp = 1e9
     return g
 
