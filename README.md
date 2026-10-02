@@ -1,8 +1,6 @@
 # Ascensus ad Mathematica
 
-A fun free survival game where the magic is math equations.
-
-A survival game where the equations you type are your weapons. Enemies chase you from
+A free survival game where the magic is math equations. The equations you type are your weapons. Enemies chase you from
 off-screen; every curve you cast pulses and damages everything it touches. Kills give XP, XP buys
 upgrades, and a boss arrives every 5 minutes. The game starts full screen; you stand at the origin
 and the visible plane is ±(width/2)/50 by ±(height/2)/50 units.
@@ -36,10 +34,16 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 
 ## Menus
 
-- **Main menu:** Play, Settings, Library, Achievements, Quit, and your best run.
-- **Pause (Esc):** Resume, Stats, Settings, Library, Main Menu. Settings and Library return to the paused game.
-- **Settings:** tabs for Display, Player, Enemies, Boss, Combat, Upgrades & XP and Equations & Variables.
-  Click a value to type it, use - / + or reset it. Saved to `save/settings.json`.
+- **Main menu:** Continue (shown when an autosave exists), Play, Saves, Settings, Library, Achievements, Quit,
+  and your best run.
+- **Pause (Esc):** Resume, Stats, Saves, Settings, Library, Main Menu. Pages opened from pause return to the paused game.
+- **Saves:** six slots with a thumbnail, run time, date and kills. Save from pause (asks before overwriting),
+  click a slot to load it, Delete needs a second click. A full run is stored: HP, XP, upgrades, enemies,
+  bosses, equations, variables and speed. An autosave is written every 60 s, when you go to the main menu
+  and when you close the window mid-run; **Continue** loads it. It is deleted when you die.
+- **Settings:** tabs for Display, Controls, Player, Enemies, Boss, Combat, Upgrades & XP and Equations & Variables.
+  Click a value to type it (Enter or clicking elsewhere applies, Tab goes to the next field), use - / + or
+  reset it. Saved to `save/settings.json`.
 - **Library:** every function with a live mini graph, syntax, combat, upgrades, enemies and controls.
 - **Achievements:** 20 of them, saved with your best run in `save/profile.json`.
 
@@ -47,7 +51,7 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 
 | Input | Effect |
 |---|---|
-| WASD / arrow keys | Move (disabled while typing) |
+| WASD / arrow keys | Move in WASD mode (disabled while typing). Settings, Controls switches between WASD and Mouse |
 | J (rebindable in Settings, Controls) | Dash toward your last movement direction (invulnerable while dashing) |
 | Mouse mode: move the mouse | Walk toward the cursor; stand still inside the dead zone or over the UI. Right-click dashes toward the cursor |
 | 1x / 2x / 3x button (next to the timer) | Click to cycle the game speed; every run starts at 1x |
@@ -62,7 +66,8 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 ## Sidebar
 
 - **EQUATIONS** (up to 200): drag to reorder, pill switch on/off, **Edit** loads it into the box,
-  **Del** removes it, click the colour swatch for a 20-colour picker. The mouse wheel scrolls the
+  **Del** removes it (a toast offers **Undo**; Ctrl+Z also restores, up to 10 deletions), click the colour
+  swatch for the 20-colour picker with names on hover and a Custom row (hue, brightness or a `#RRGGBB` code). The mouse wheel scrolls the
   list while hovered. The first 6 enabled rows fire; the rest are "queued" (faint, not animated).
 - **VARIABLES** (up to 200, appear automatically): slider -5..5, a value box (type any number),
   and a play button that ping-pongs the value.
@@ -105,9 +110,23 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 ## Files and saves
 
 `save/equations.json` (equations, colours, variables), `save/settings.json`, `save/profile.json`
-(best run, lifetime counters, achievements). Delete a file to reset it.
+(best run, lifetime counters, achievements) and `save/slots/` (save slots and the autosave).
+Delete a file to reset it. An old `save/formulas.json` is migrated to `save/equations.json` once
+(the old file is left in place). The `save/` folder is not part of the repository.
+
+## Performance
+
+`tools\smoke.py` plays the game headless at 1280x720 and 1920x1080 with 200 enemies and reports frame times.
+Gates: 8 ms average / 16 ms p95 at 1280x720 and 12.5 / 18 ms at 1920x1080 (target there: 10 / 16).
+Window text never overflows: the QA test `tests/test_overflow_audit.py` renders every page at 800x600,
+800x800 and 1920x1080. The smallest window is 800x600.
 
 ## License
 
-Released into the public domain under the [Unlicense](LICENSE). Dependencies (pygame-ce, numpy)
-are installed with pip and are not part of this repository.
+Released into the public domain under the [Unlicense](LICENSE).
+
+Third-party notes:
+- Icons in `assets/icons/` are from [Kenney](https://kenney.nl) (Game Icons and Board Game Icons), CC0 1.0
+  public domain; the license text is in `assets/icons/License.txt`. Other icons are drawn in code.
+- Text uses pygame's built-in font through `pygame.freetype`; no font files are bundled.
+- pygame-ce (LGPL) and numpy (BSD) are installed with pip and are not part of this repository.

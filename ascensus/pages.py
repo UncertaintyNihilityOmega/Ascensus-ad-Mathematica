@@ -46,12 +46,12 @@ class StatsScene(Scene):
         self.back_btn.draw(screen)
         cols, cw = column_layout(len(self.groups), view.W)
         y0 = config.PAGE_HEADER_H + m
+        lh, font = self.row_metrics(cols, view.H - y0 - m)
         row_y = y0
-        font, lh = config.STATS_FONT, config.STATS_LINE_H
         for i, (title, rows) in enumerate(self.groups):
             col = i % cols
             if col == 0 and i:
-                row_y = y0 + self._group_h(self.groups[i - cols:i]) + m
+                row_y += self._group_h(self.groups[i - cols:i], lh) + m
             x = m + col * (cw + m)
             draw_text(screen, title, config.STATS_HEAD_FONT, config.ACCENT_COLOR, (x, row_y), max_w=cw)
             pygame.draw.line(screen, config.BUTTON_BORDER, (x, row_y + 30), (x + cw, row_y + 30))
@@ -61,7 +61,17 @@ class StatsScene(Scene):
                 draw_text(screen, value, font, config.TEXT_COLOR, (x + cw, y), "topright",
                           max_w=int(cw * 0.4), min_size=14)
 
+    def row_metrics(self, cols: int, avail_h: int) -> tuple[int, int]:
+        """(line height, font size) that make every group row fit in `avail_h` (shrinks in short windows)."""
+        m = config.PAGE_MARGIN
+        bands = [self.groups[i:i + cols] for i in range(0, len(self.groups), cols)]
+        total_rows = sum(max(len(rows) for _, rows in band) for band in bands)
+        fixed = len(bands) * (40 + m) - m
+        lh = (avail_h - fixed) // max(total_rows, 1)
+        lh = max(config.STATS_MIN_LINE_H, min(config.STATS_LINE_H, lh))
+        return lh, min(config.STATS_FONT, max(14, lh - 6))
+
     @staticmethod
-    def _group_h(groups) -> int:
-        """Height of one row of groups (the tallest one)."""
-        return 40 + max(len(rows) for _, rows in groups) * config.STATS_LINE_H
+    def _group_h(groups, lh: int = config.STATS_LINE_H) -> int:
+        """Height of one band of groups (the tallest one)."""
+        return 40 + max(len(rows) for _, rows in groups) * lh

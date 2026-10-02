@@ -408,3 +408,4 @@ PICKER_TIP_PAD = 4
 PICKER_HEX_MAX = 7                  # "#RRGGBB"
 
 AUTOSAVE_MIN_TIME = 1.0          # no autosave for a run younger than this (seconds of game time)
+STATS_MIN_LINE_H = 18          # stats rows never get tighter than this (short windows shrink them down to it)

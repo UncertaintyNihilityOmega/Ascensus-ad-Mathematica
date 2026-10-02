@@ -48,6 +48,7 @@ _fonts: dict[tuple[int, bool], Font] = {}
 _text_cache: dict[tuple, pygame.Surface] = {}
 overflow_count = 0                      # times a text had to be truncated even at its minimum size
 overflow_log: list[str] = []
+audit_rects: list | None = None          # QA: when a list, draw_text appends (text, rect, surface clip, surface size)
 
 
 def reset_overflow() -> None:
@@ -135,6 +136,8 @@ def draw_text(surf: pygame.Surface, text: str, size: int, color: tuple[int, ...]
         img = _line_image(lines[0], size, color, bold)
         rect = img.get_rect(**{anchor: pos})
         surf.blit(img, rect)
+        if audit_rects is not None:
+            audit_rects.append((lines[0], rect.copy(), surf.get_clip().copy(), surf.get_size()))
         return rect
     lh = get_font(size, bold).get_linesize()
     imgs = [_line_image(t, size, color, bold) for t in lines]
@@ -149,6 +152,8 @@ def draw_text(surf: pygame.Surface, text: str, size: int, color: tuple[int, ...]
         else:
             r.centerx = block.centerx
         surf.blit(img, r)
+    if audit_rects is not None:
+        audit_rects.append((" ".join(lines), block.copy(), surf.get_clip().copy(), surf.get_size()))
     return block
 
 
