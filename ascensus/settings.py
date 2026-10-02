@@ -69,7 +69,7 @@ SETTINGS: list[Setting] = [
     _b("SHOW_GRID_DEFAULT", "Show grid", DISPLAY, "G toggles in game"),
     _i("GRID_STEP", "Curve quality (grid step)", DISPLAY, 2, 6, 1, "Smaller is smoother but slower"),
     # Controls
-    _c("MOVE_MODE", "Movement", CONTROLS, ("WASD", "Mouse"), "WASD keys, or walk toward the mouse (right-click dashes)"),
+    _c("MOVE_MODE", "Movement", CONTROLS, ("WASD", "Mouse"), "WASD keys, or follow the mouse (right-click dashes)"),
     _k("DASH_KEY", "Dash key", CONTROLS, "Click, then press a key (Esc cancels)"),
     _f("MOUSE_DEAD_ZONE", "Mouse dead zone", CONTROLS, 0, 200, 1, "Pixels around you where the mouse means stand still"),
     # Player
