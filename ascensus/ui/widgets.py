@@ -4,8 +4,8 @@ from __future__ import annotations
 import pygame
 import pygame.freetype
 
-from .. import config
-from . import icons
+from ascensus import config
+from ascensus.ui import icons
 
 
 class Font:

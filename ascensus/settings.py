@@ -18,7 +18,7 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import config
+from ascensus import config
 
 
 @dataclass(frozen=True)

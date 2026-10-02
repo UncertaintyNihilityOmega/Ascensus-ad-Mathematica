@@ -12,7 +12,7 @@ from typing import Callable
 
 import pygame
 
-from .. import config
+from ascensus import config
 
 BASE = 96                                       # drawn-in-code icons are painted at this size, then scaled
 ICON_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "icons"

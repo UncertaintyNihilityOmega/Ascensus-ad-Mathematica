@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import pygame
 
-from .. import config, view
-from ..equations import EquationManager
-from . import icons
-from .colorpicker import CustomRow
-from .inputbox import InputBox
-from .widgets import NumberField, Slider, draw_icon, draw_text, fmt_number, get_font
+from ascensus import config, view
+from ascensus.equations import EquationManager
+from ascensus.ui import icons
+from ascensus.ui.colorpicker import CustomRow
+from ascensus.ui.inputbox import InputBox
+from ascensus.ui.widgets import NumberField, Slider, draw_icon, draw_text, fmt_number, get_font
 
 TAGS = {"queued": "queued", "off": "off", "offscreen": "off-screen"}
 

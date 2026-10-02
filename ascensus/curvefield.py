@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from . import config, view
+from ascensus import config, view
 
 CurveFunc = Callable[[np.ndarray, np.ndarray, float], np.ndarray]
 

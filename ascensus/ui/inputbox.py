@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pygame
 
-from .. import config, view
-from .widgets import draw_text, get_font
+from ascensus import config, view
+from ascensus.ui.widgets import draw_text, get_font
 
 
 _fallback_clip = ""      # used when pygame.scrap is unavailable (no display, headless runs)

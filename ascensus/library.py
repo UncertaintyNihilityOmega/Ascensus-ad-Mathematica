@@ -6,10 +6,10 @@ from typing import Callable
 
 import pygame
 
-from . import config, library_data, view
-from .scenes import Scene
-from .ui.minigraph import render_minigraph
-from .ui.widgets import Button, ScrollArea, Tabs, draw_text, get_font
+from ascensus import config, library_data, view
+from ascensus.scenes import Scene
+from ascensus.ui.minigraph import render_minigraph
+from ascensus.ui.widgets import Button, ScrollArea, Tabs, draw_text, get_font
 
 _wrap_cache: dict[tuple[str, int, int], list[str]] = {}
 

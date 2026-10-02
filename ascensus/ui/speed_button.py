@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pygame
 
-from .. import config, view
-from .widgets import draw_text, get_font
+from ascensus import config, view
+from ascensus.ui.widgets import draw_text, get_font
 
 
 def next_speed(speed: int) -> int:

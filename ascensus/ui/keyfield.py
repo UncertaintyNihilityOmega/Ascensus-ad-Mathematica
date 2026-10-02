@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import pygame
 
-from .. import config
-from .. import controls
-from .widgets import draw_text
+from ascensus import config
+from ascensus import controls
+from ascensus.ui.widgets import draw_text
 
 
 class KeyField:

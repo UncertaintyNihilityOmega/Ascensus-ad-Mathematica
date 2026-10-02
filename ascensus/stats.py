@@ -1,9 +1,9 @@
 """Data for the Stats page as a pure function: four column groups of (label, value) text."""
 from __future__ import annotations
 
-from . import config
-from .enemies import difficulty
-from .upgrades import STATS
+from ascensus import config
+from ascensus.enemies import difficulty
+from ascensus.upgrades import STATS
 
 
 def mmss(seconds: float) -> str:

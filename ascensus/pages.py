@@ -5,10 +5,10 @@ from typing import Callable
 
 import pygame
 
-from . import config, view
-from .scenes import Scene
-from .stats import build_stats
-from .ui.widgets import Button, draw_text
+from ascensus import config, view
+from ascensus.scenes import Scene
+from ascensus.stats import build_stats
+from ascensus.ui.widgets import Button, draw_text
 
 
 def column_layout(n_groups: int, width: int) -> tuple[int, int]:

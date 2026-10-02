@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame
 
-from . import config
+from ascensus import config
 
 
 def game_layout(left_edge: int, w: int, h: int) -> tuple[pygame.Rect, int]:

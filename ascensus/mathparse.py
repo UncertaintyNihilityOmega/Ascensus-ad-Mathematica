@@ -8,7 +8,7 @@ from typing import Callable
 
 import numpy as np
 
-from . import config
+from ascensus import config
 
 
 class EquationError(ValueError):

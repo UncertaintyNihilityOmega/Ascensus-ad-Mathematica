@@ -9,7 +9,7 @@ import math
 
 import pygame
 
-from . import config, view
+from ascensus import config, view
 
 MODES = ("WASD", "Mouse")
 DEFAULT_DASH_KEY = "j"

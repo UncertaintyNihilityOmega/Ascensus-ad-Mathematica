@@ -5,11 +5,11 @@ from typing import Callable
 
 import pygame
 
-from . import config, display, settings, view
-from .scenes import Scene
-from .settings import Setting
-from .ui.keyfield import KeyField
-from .ui.widgets import Button, IconButton, NumberField, ScrollArea, Tabs, draw_text, fmt_number, get_font
+from ascensus import config, display, settings, view
+from ascensus.scenes import Scene
+from ascensus.settings import Setting
+from ascensus.ui.keyfield import KeyField
+from ascensus.ui.widgets import Button, IconButton, NumberField, ScrollArea, Tabs, draw_text, fmt_number, get_font
 
 LIVE_KEYS = frozenset({"FULLSCREEN_START", "WINDOW_FRACTION", "UNIT_PX", "GRID_STEP"})   # apply at once
 BTN = 30                                                      # square [-] / [+] / reset buttons

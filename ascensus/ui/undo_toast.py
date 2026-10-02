@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pygame
 
-from .. import config, view
-from .widgets import draw_text, get_font, truncate
+from ascensus import config, view
+from ascensus.ui.widgets import draw_text, get_font, truncate
 
 NAME_MAX_W = 220                 # the equation name is cut with '...' beyond this many pixels
 

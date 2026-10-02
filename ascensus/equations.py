@@ -5,11 +5,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import config, view
-from .curvefield import CurveData, build_curve, render_curve
-from .enemies import Swarm
-from .mathparse import EquationError, ParsedEquation, parse_equation
-from .variables import VariableStore
+from ascensus import config, view
+from ascensus.curvefield import CurveData, build_curve, render_curve
+from ascensus.enemies import Swarm
+from ascensus.mathparse import EquationError, ParsedEquation, parse_equation
+from ascensus.variables import VariableStore
 
 
 @dataclass

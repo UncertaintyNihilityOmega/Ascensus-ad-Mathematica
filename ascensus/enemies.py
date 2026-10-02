@@ -6,8 +6,8 @@ import math
 import numpy as np
 import pygame
 
-from . import config, view
-from .ui.widgets import draw_text
+from ascensus import config, view
+from ascensus.ui.widgets import draw_text
 
 
 def _center() -> np.ndarray:

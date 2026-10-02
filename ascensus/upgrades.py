@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 
-from . import config
+from ascensus import config
 
 # Cheapest-first tie-break order: HP, then DMG, then CD.
 STATS = ("max_hp", "base_dmg", "cooldown")

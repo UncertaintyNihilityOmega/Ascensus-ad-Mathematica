@@ -10,8 +10,8 @@ import colorsys
 
 import pygame
 
-from .. import config
-from .widgets import draw_text
+from ascensus import config
+from ascensus.ui.widgets import draw_text
 
 Color = tuple[int, int, int]
 HEX_DIGITS = "0123456789abcdefABCDEF"

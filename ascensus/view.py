@@ -1,7 +1,7 @@
 """Mutable viewport: window size and the math <-> screen mapping. Read `view.W` / `view.H` at call time."""
 from __future__ import annotations
 
-from . import config
+from ascensus import config
 
 W: int = 1280
 H: int = 720

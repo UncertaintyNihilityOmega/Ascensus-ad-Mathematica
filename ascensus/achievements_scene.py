@@ -5,13 +5,13 @@ from typing import Callable
 
 import pygame
 
-from . import config, view
-from .achievements import ACHIEVEMENTS, TOTAL
-from .library import line_height, wrap_text
-from .profile import Profile
-from .scenes import Scene
-from .ui import icons
-from .ui.widgets import Button, ScrollArea, draw_text, get_font
+from ascensus import config, view
+from ascensus.achievements import ACHIEVEMENTS, TOTAL
+from ascensus.library import line_height, wrap_text
+from ascensus.profile import Profile
+from ascensus.scenes import Scene
+from ascensus.ui import icons
+from ascensus.ui.widgets import Button, ScrollArea, draw_text, get_font
 
 
 def card_model(profile: Profile) -> list[dict]:
@@ -43,7 +43,7 @@ class AchievementsScene(Scene):
 
     def __init__(self, back: Callable[[], object], profile: Profile | None = None) -> None:
         super().__init__()
-        from .profile import get_profile
+        from ascensus.profile import get_profile
         self.back = back
         self.profile = profile if profile is not None else get_profile()
         m = config.PAGE_MARGIN

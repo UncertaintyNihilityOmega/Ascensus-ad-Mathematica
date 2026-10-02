@@ -5,7 +5,7 @@ import datetime
 import json
 from pathlib import Path
 
-from . import config
+from ascensus import config
 
 
 class Profile:

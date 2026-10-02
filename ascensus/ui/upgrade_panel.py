@@ -5,9 +5,9 @@ from typing import Callable
 
 import pygame
 
-from .. import config, view
-from ..upgrades import STATS, Upgrades
-from .widgets import draw_text
+from ascensus import config, view
+from ascensus.upgrades import STATS, Upgrades
+from ascensus.ui.widgets import draw_text
 
 
 class UpgradePanel:

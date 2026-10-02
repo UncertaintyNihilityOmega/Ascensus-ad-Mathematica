@@ -6,9 +6,9 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
-from . import config
-from .eqmatch import matches
-from .profile import Profile
+from ascensus import config
+from ascensus.eqmatch import matches
+from ascensus.profile import Profile
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
-from . import config
+from ascensus import config
 
 
 @dataclass

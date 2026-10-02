@@ -7,24 +7,24 @@ from pathlib import Path
 import numpy as np
 import pygame
 
-from . import config, controls, view
-from .curvefield import build_curve, render_curve
-from .enemies import Spawner, Swarm
-from .equations import EquationManager
-from .mathparse import EquationError, parse_equation
-from .achievements import AchievementTracker
-from .player import Player
-from .profile import Profile, get_profile
-from .savegame import SlotStore
-from .ui import icons
-from .ui.inputbox import InputBox
-from .ui.sidebar import Sidebar
-from .ui.speed_button import SpeedButton, next_speed
-from .ui.undo_toast import UndoToast
-from .ui.upgrade_panel import UpgradePanel
-from .layout import game_layout
-from .ui.widgets import Button, draw_text, get_font
-from .upgrades import Upgrades
+from ascensus import config, controls, view
+from ascensus.curvefield import build_curve, render_curve
+from ascensus.enemies import Spawner, Swarm
+from ascensus.equations import EquationManager
+from ascensus.mathparse import EquationError, parse_equation
+from ascensus.achievements import AchievementTracker
+from ascensus.player import Player
+from ascensus.profile import Profile, get_profile
+from ascensus.savegame import SlotStore
+from ascensus.ui import icons
+from ascensus.ui.inputbox import InputBox
+from ascensus.ui.sidebar import Sidebar
+from ascensus.ui.speed_button import SpeedButton, next_speed
+from ascensus.ui.undo_toast import UndoToast
+from ascensus.ui.upgrade_panel import UpgradePanel
+from ascensus.layout import game_layout
+from ascensus.ui.widgets import Button, draw_text, get_font
+from ascensus.upgrades import Upgrades
 
 QUIT = "quit"
 
@@ -85,16 +85,16 @@ def open_page(name: str, back, game=None) -> "Scene | None":
     """
     try:
         if name == "saves":
-            from .saves_scene import SavesScene
+            from ascensus.saves_scene import SavesScene
             return SavesScene(game, back)
         if name == "settings":
-            from .settings_scene import SettingsScene
+            from ascensus.settings_scene import SettingsScene
             return SettingsScene(back)
         if name == "library":
-            from .library import LibraryScene
+            from ascensus.library import LibraryScene
             return LibraryScene(back)
         if name == "achievements":
-            from .achievements_scene import AchievementsScene
+            from ascensus.achievements_scene import AchievementsScene
             return AchievementsScene(back)
     except ImportError:
         return None
@@ -145,7 +145,7 @@ class MenuScene(Scene):
 
     def continue_game(self) -> None:
         """Load the autosave into a GameScene; an unreadable autosave is deleted and the button disappears."""
-        from .savegame import restore
+        from ascensus.savegame import restore
         data = self.store.load_autosave()
         try:
             if data is None:
@@ -388,7 +388,7 @@ class GameScene(Scene):
                     e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
                 self.paused = False
             elif self.stats_btn.handle_event(e):
-                from .pages import StatsScene
+                from ascensus.pages import StatsScene
                 self.next_scene = StatsScene(self, self._return_here)
             elif self.saves_btn.handle_event(e):
                 self.next_scene = open_page("saves", self._return_here, game=self)

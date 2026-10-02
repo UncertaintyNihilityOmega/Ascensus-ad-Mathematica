@@ -12,14 +12,14 @@ from typing import Callable
 
 import pygame
 
-from . import config, view
-from .achievements import AchievementTracker
-from .profile import get_profile
-from .savegame import SlotInfo, SlotStore, read_export, restore
-from .scenes import Scene
-from .stats import mmss
-from .ui import filedialog
-from .ui.widgets import Button, draw_text
+from ascensus import config, view
+from ascensus.achievements import AchievementTracker
+from ascensus.profile import get_profile
+from ascensus.savegame import SlotInfo, SlotStore, read_export, restore
+from ascensus.scenes import Scene
+from ascensus.stats import mmss
+from ascensus.ui import filedialog
+from ascensus.ui.widgets import Button, draw_text
 
 ASPECT = config.THUMB_SIZE[0] / config.THUMB_SIZE[1]
 

@@ -1,3 +1,3 @@
-from .main import main
+from ascensus.main import main
 
 main()

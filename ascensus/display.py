@@ -6,7 +6,7 @@ import warnings
 
 import pygame
 
-from . import config, view
+from ascensus import config, view
 
 fullscreen: bool = True          # the mode the window is currently in
 
