@@ -16,6 +16,7 @@ import numpy as np
 import pygame
 
 from . import config, view
+from .equations import USE_CONFIG, resolve_save_path
 from .curvefield import render_curve
 
 AUTO = "autosave"                          # the slot key of the autosave (the others are 1..SAVE_SLOTS)
@@ -58,7 +59,7 @@ def _finite(x, lo: float | None = None) -> float:
     return v
 
 
-def restore(data: dict, save_path: Path | None = config.SAVE_PATH, profile=None):
+def restore(data: dict, save_path: Path | None | str = USE_CONFIG, profile=None):
     """Build a GameScene continuing the saved run; raises ValueError when `data` is not a valid save.
 
     `save_path` is where the restored equations are written (None: nowhere); `profile` as for GameScene.
@@ -106,7 +107,7 @@ def restore(data: dict, save_path: Path | None = config.SAVE_PATH, profile=None)
     except (KeyError, TypeError, ValueError, IndexError, AttributeError) as err:
         raise ValueError(f"corrupt save: {err}") from err
     game.equations.apply_data({"equations": data["equations"], "variables": data["variables"]})
-    game.equations.save_path = save_path
+    game.equations.save_path = resolve_save_path(save_path)
     game.equations.save()
     return game
 

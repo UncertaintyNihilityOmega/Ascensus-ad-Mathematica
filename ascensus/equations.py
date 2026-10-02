@@ -119,6 +119,16 @@ def _read_color(value) -> tuple[int, int, int] | None:
     return (r, g, b) if all(0 <= c <= 255 for c in (r, g, b)) else None
 
 
+# Default for `save_path` parameters: read config.SAVE_PATH when called, not at import, so tests that
+# redirect config.SAVE_PATH can never write the real save/equations.json.
+USE_CONFIG = "config"
+
+
+def resolve_save_path(path: "Path | None | str") -> "Path | None":
+    """`USE_CONFIG` -> the current config.SAVE_PATH; anything else (a Path or None) unchanged."""
+    return config.SAVE_PATH if path == USE_CONFIG else path
+
+
 # --- migration of the pre-rename save (save/formulas.json, key "formulas") ----------------------
 LEGACY_SAVE_NAME = "formulas.json"
 LEGACY_KEY = "formulas"

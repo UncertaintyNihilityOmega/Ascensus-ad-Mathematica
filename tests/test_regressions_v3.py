@@ -218,3 +218,27 @@ def test_input_box_and_upgrade_panel_do_not_overlap(size, collapsed):
         assert not rect.colliderect(box)
     if panel.bottom >= box.top - 1 and panel.left > box.right:        # side by side: not too narrow
         assert box.w >= config.INPUT_MIN_W
+
+
+# --- text drawn at its baseline, not one ascender too low (the "halved text" bug) ---------------------
+@pytest.mark.parametrize("size", [16, 22, 28, 60])
+def test_text_ink_is_not_cut_off(size):
+    """freetype's render_to takes the bbox top-left unless origin mode is on; without it the glyphs
+    were drawn an ascender too low and the bottom half fell outside the line surface."""
+    img = widgets.get_font(size).render("Hgpy Settings", True, (255, 255, 255))
+    ink = img.get_bounding_rect()
+    assert ink.top <= img.get_height() * 0.3, (ink, img.get_size())     # capitals start near the top
+    assert ink.height >= img.get_height() * 0.6, (ink, img.get_size())  # whole glyphs, not a sliver
+
+
+# --- default save paths are read when called, so redirected tests never write the real save -----------
+def test_restore_and_game_use_the_current_save_path(tmp_path, monkeypatch):
+    from ascensus.savegame import restore, snapshot
+
+    monkeypatch.setattr(config, "SAVE_PATH", tmp_path / "redirected.json")
+    g = GameScene(seed=1, profile=Profile.in_memory())
+    assert g.equations.save_path == tmp_path / "redirected.json"
+    src = GameScene(seed=1, save_path=None, profile=Profile.in_memory())
+    src.equations.add("y = x")
+    restored = restore(snapshot(src), profile=Profile.in_memory())
+    assert restored.equations.save_path == tmp_path / "redirected.json"

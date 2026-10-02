@@ -20,6 +20,7 @@ class Font:
             pygame.freetype.init()
         self.ft = pygame.freetype.Font(None, size * config.FONT_SCALE)
         self.ft.strong = bold
+        self.ft.origin = True            # render_to's position is the baseline, not the bbox top-left
         self.height = self.ft.get_sized_height()
         self.ascent = self.ft.get_sized_ascender()
 

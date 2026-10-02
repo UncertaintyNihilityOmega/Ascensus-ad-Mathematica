@@ -10,7 +10,7 @@ import pygame
 from . import config, controls, view
 from .curvefield import build_curve, render_curve
 from .enemies import Spawner, Swarm
-from .equations import EquationManager
+from .equations import USE_CONFIG, EquationManager, resolve_save_path
 from .mathparse import EquationError, parse_equation
 from .achievements import AchievementTracker
 from .player import Player
@@ -265,7 +265,7 @@ def make_grid() -> tuple[list[tuple[tuple[int, int, int], tuple[int, int], tuple
 class GameScene(Scene):
     """The survival game: player, swarm, HUD and pause overlay."""
 
-    def __init__(self, seed: int | None = None, save_path: Path | None = config.SAVE_PATH,
+    def __init__(self, seed: int | None = None, save_path: Path | None | str = USE_CONFIG,
                  profile: Profile | None = None, slots: SlotStore | None = None) -> None:
         super().__init__()
         self.slots = slots if slots is not None else SlotStore()      # where the autosave goes
@@ -278,7 +278,7 @@ class GameScene(Scene):
         self.player = Player()
         self.swarm = Swarm(self.rng)
         self.spawner = Spawner()
-        self.equations = EquationManager(save_path)
+        self.equations = EquationManager(resolve_save_path(save_path))
         self.equations.load()
         self.equations.store.listener = self.emit     # var_created / var_play -> achievements
         self.input = InputBox()
