@@ -31,6 +31,11 @@ def test_cached_and_colored():
     assert icons.skull(20, (0, 255, 0)) is not icons.skull(20)
 
 
-def test_skull_has_cutout_features():
-    img = icons.skull(96)
+def test_skull_fallback_drawer_has_cutout_features():
+    """The in-code skull (used only when assets/icons/skull.png is missing) keeps its punched-out eyes."""
+    img = icons._draw_skull()
     assert img.get_at((48, 30)).a > 0 and img.get_at((33, 34)).a == 0   # eye bar punched out
+
+
+def test_skull_png_is_used_when_present():
+    assert icons.has_png("skull") and icons.skull(96).get_at((0, 0)).a == 0

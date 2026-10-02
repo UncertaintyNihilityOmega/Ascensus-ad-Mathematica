@@ -180,13 +180,15 @@ def test_picker_pick_close_and_save(tmp_path):
 
 
 def test_new_equations_take_first_unused_color_then_cycle():
-    pal = config.CURVE_PALETTE_20
-    assert len(pal) == 20 and len(set(pal)) == 20
+    assert len(config.CURVE_PALETTE_20) == 20 and len(set(config.CURVE_PALETTE_20)) == 20
+    pal = config.CURVE_PALETTE_AUTO                    # Black and Graphite are skipped (invisible on the dark bg)
+    assert (0, 0, 0) not in pal and len(pal) == 18
     m = lazy_manager(0)
-    for k in range(20):
+    n = len(pal)
+    for k in range(n):
         assert m._append(f"y = x + {k}", build=False).color == pal[k]
-    assert m._append("y = x + 20", build=False).color == pal[0]           # all used: cycle
-    assert m._append("y = x + 21", build=False).color == pal[1]           # ...and keeps cycling evenly
+    assert m._append(f"y = x + {n}", build=False).color == pal[0]         # all used: cycle
+    assert m._append(f"y = x + {n + 1}", build=False).color == pal[1]     # ...and keeps cycling evenly
 
 
 # --- save format ---------------------------------------------------------
@@ -212,11 +214,11 @@ def test_save_v2_and_load_v1_v2(tmp_path):
     path.write_text('{"version":1,"equations":[{"text":"x^2","enabled":true},{"text":"x = 2","enabled":false}]}')
     m2.load()
     assert [(e.text, e.enabled) for e in m2.entries] == [("x^2", True), ("x = 2", False)]
-    assert [e.color for e in m2.entries] == config.CURVE_PALETTE_20[:2] and m2.variables == {}
+    assert [e.color for e in m2.entries] == config.CURVE_PALETTE_AUTO[:2] and m2.variables == {}
     # bad colours fall back to the palette
     path.write_text('{"version":2,"equations":[{"text":"x^2","color":[1,2]},{"text":"x = 2","color":[999,0,0]}]}')
     m2.load()
-    assert [e.color for e in m2.entries] == config.CURVE_PALETTE_20[:2]
+    assert [e.color for e in m2.entries] == config.CURVE_PALETTE_AUTO[:2]
 
 
 # --- queued layer and progressive load -------------------------------------

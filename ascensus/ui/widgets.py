@@ -5,6 +5,7 @@ import pygame
 import pygame.freetype
 
 from .. import config
+from . import icons
 
 
 class Font:
@@ -561,30 +562,10 @@ class ScrollArea:
 
 
 def draw_icon(surf: pygame.Surface, kind: str, rect: pygame.Rect, color: tuple[int, ...]) -> None:
-    """Primitive icons in `rect`: plus, minus, reset, play, pause, cross."""
-    cx, cy = rect.center
-    r = max(min(rect.w, rect.h) // 2 - 5, 2)
-    w = 2
-    if kind in ("plus", "minus"):
-        pygame.draw.line(surf, color, (cx - r, cy), (cx + r, cy), w)
-        if kind == "plus":
-            pygame.draw.line(surf, color, (cx, cy - r), (cx, cy + r), w)
-    elif kind == "cross":
-        pygame.draw.line(surf, color, (cx - r, cy - r), (cx + r, cy + r), w)
-        pygame.draw.line(surf, color, (cx - r, cy + r), (cx + r, cy - r), w)
-    elif kind == "reset":                       # open circle arc with an arrowhead at its start
-        box = pygame.Rect(0, 0, 2 * r, 2 * r)
-        box.center = (cx, cy)
-        pygame.draw.arc(surf, color, box, 0.6, 6.0, w)
-        tip = (cx + r, cy - 1)
-        pygame.draw.line(surf, color, tip, (tip[0] - 4, tip[1] - 4), w)
-        pygame.draw.line(surf, color, tip, (tip[0] + 3, tip[1] - 3), w)
-    elif kind == "play":
-        pygame.draw.polygon(surf, color, [(cx - r + 2, cy - r), (cx - r + 2, cy + r), (cx + r, cy)])
-    elif kind == "pause":
-        bw = max(r * 2 // 3, 2)
-        pygame.draw.rect(surf, color, (cx - r, cy - r, bw, 2 * r))
-        pygame.draw.rect(surf, color, (cx + r - bw, cy - r, bw, 2 * r))
+    """Blit the tinted icon `kind` (any name from ui/icons.py: plus, minus, reset, play, pause, ...) centred in `rect`."""
+    side = max(min(rect.w, rect.h) - config.ICON_INSET, 4)
+    img = icons.icon(kind, side, color)
+    surf.blit(img, img.get_rect(center=rect.center))
 
 
 class IconButton:

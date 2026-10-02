@@ -1,10 +1,12 @@
-"""Collapsible equation sidebar: rows, on/off switch, Edit, Del, drag reorder."""
+"""Collapsible equation sidebar: rows, on/off switch, pencil (edit) and trash (delete) icons, drag reorder."""
 from __future__ import annotations
 
 import pygame
 
 from .. import config, view
 from ..equations import EquationManager
+from . import icons
+from .colorpicker import CustomRow
 from .inputbox import InputBox
 from .widgets import NumberField, Slider, draw_icon, draw_text, fmt_number, get_font
 
@@ -35,6 +37,7 @@ class Sidebar:
         self._row_cache: dict[tuple, pygame.Surface] = {}   # rendered row images
         self.picker_idx: int | None = None       # row whose colour popup is open
         self.picker_rect = pygame.Rect(0, 0, 0, 0)
+        self.custom = CustomRow()                # the popup's Custom row (hue / brightness strips, hex box)
         self.tab_rect = pygame.Rect(0, config.SIDEBAR_TAB_Y, *config.SIDEBAR_TAB_SIZE)
         self.collapse_rect = pygame.Rect(config.SIDEBAR_W - config.SIDEBAR_PAD - config.SIDEBAR_COLLAPSE_SIZE,
                                          config.SIDEBAR_PAD * 2, config.SIDEBAR_COLLAPSE_SIZE,
@@ -174,30 +177,88 @@ class Sidebar:
         col, row = k % config.PICKER_COLS, k // config.PICKER_COLS
         return pygame.Rect(self.picker_rect.x + p + col * (c + g), self.picker_rect.y + p + row * (c + g), c, c)
 
+    def _custom_top(self) -> int:
+        """y of the Custom row inside the popup (below the swatch grid and a separator line)."""
+        c, g, p = config.PICKER_CELL, config.PICKER_GAP, config.PICKER_PAD
+        rows = -(-len(config.CURVE_PALETTE_20) // config.PICKER_COLS)
+        return self.picker_rect.y + p + rows * c + (rows - 1) * g + config.PICKER_SEP + 2
+
     def open_picker(self, i: int) -> None:
-        """Open the 20-colour popup for row i, placed under its swatch and kept inside the window."""
+        """Open the colour popup (20 swatches + Custom row) for row i, under its swatch, inside the window."""
         n = len(config.CURVE_PALETTE_20)
         cols, rows = config.PICKER_COLS, -(-n // config.PICKER_COLS)
         c, g, p = config.PICKER_CELL, config.PICKER_GAP, config.PICKER_PAD
-        w, h = 2 * p + cols * c + (cols - 1) * g, 2 * p + rows * c + (rows - 1) * g
+        w = 2 * p + cols * c + (cols - 1) * g
+        h = 2 * p + rows * c + (rows - 1) * g + config.PICKER_SEP + 2 + CustomRow.height()
         sw = self.rects(i)["swatch"]
         x = max(0, min(view.W - w, sw.left))
         y = sw.bottom + 4
         if y + h > view.H:
             y = max(0, sw.top - 4 - h)
         self.picker_idx, self.picker_rect = i, pygame.Rect(x, y, w, h)
+        self.custom.hex.blur()
+        self.custom.set_rect(pygame.Rect(x + p, self._custom_top(), w - 2 * p, CustomRow.height()))
+        if i < len(self.manager.entries):
+            self.custom.set_color(self.manager.entries[i].color)
+        self.input.blur()                          # one text focus at a time
+
+    def close_picker(self) -> None:
+        """Close the colour popup (dropping an unfinished hex edit)."""
+        if self.picker_idx is not None and self.custom.hex.focused and not self.input.focused:
+            try:
+                pygame.key.stop_text_input()
+            except pygame.error:
+                pass
+        self.custom.hex.blur()
+        for strip in (self.custom.hue_strip, self.custom.val_strip):
+            strip.dragging = False
+        self.picker_idx = None
+
+    def picker_hover(self, pos: tuple[int, int]) -> int | None:
+        """Index of the palette swatch under `pos` while the popup is open, else None."""
+        if self.picker_idx is None or not self.picker_rect.collidepoint(pos):
+            return None
+        for k in range(len(config.CURVE_PALETTE_20)):
+            if self._picker_cell(k).collidepoint(pos):
+                return k
+        return None
+
+    def picker_tooltip(self, pos: tuple[int, int]) -> str | None:
+        """Name of the palette colour under `pos` (the hover tooltip), or None."""
+        k = self.picker_hover(pos)
+        return config.CURVE_PALETTE_NAMES[k] if k is not None else None
+
+    def _apply_color(self, color: tuple[int, int, int]) -> None:
+        if self.picker_idx is not None and self.picker_idx < len(self.manager.entries):
+            self.manager.set_color(self.picker_idx, color)
+
+    def _picker_event(self, e: pygame.event.Event) -> None:
+        """The popup is modal: every event lands here first and is consumed."""
+        cus = self.custom
+        if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE and not cus.hex.focused:
+            self.close_picker()
+        elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+            self._picker_click(e.pos)
+        elif e.type == pygame.MOUSEWHEEL:
+            self.close_picker()
+        elif e.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP, pygame.KEYDOWN, pygame.TEXTINPUT):
+            color = cus.handle_event(e)
+            if color is not None:
+                self._apply_color(color)
 
     def _picker_click(self, pos: tuple[int, int]) -> None:
-        """A click while the popup is open: pick a colour, or close it (the click is consumed)."""
+        """A click while the popup is open: pick a swatch, use the Custom row, or close it (always consumed)."""
         if self.picker_rect.collidepoint(pos):
-            for k, color in enumerate(config.CURVE_PALETTE_20):
-                if self._picker_cell(k).collidepoint(pos):
-                    if self.picker_idx is not None and self.picker_idx < len(self.manager.entries):
-                        self.manager.set_color(self.picker_idx, color)
-                    break
-            else:
-                return                        # on the popup's padding: stay open
-        self.picker_idx = None
+            k = self.picker_hover(pos)
+            if k is not None:
+                self._apply_color(config.CURVE_PALETTE_20[k])
+                self.close_picker()
+                return
+            color = self.custom.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=pos, button=1))
+            if color is not None:
+                self._apply_color(color)
+            return                                # on the Custom row or the padding: stay open
+        self.close_picker()
 
     # --- events ----------------------------------------------------------
     def update(self, real_dt: float) -> None:
@@ -299,16 +360,9 @@ class Sidebar:
 
     def handle_event(self, e: pygame.event.Event) -> bool:
         if self.picker_idx is not None:                      # the colour popup is modal: it sees events first
-            if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
-                self.picker_idx = None
-                return True
-            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                self._picker_click(e.pos)
-                return True
-            if e.type in (pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-                return True
-            if e.type == pygame.MOUSEWHEEL:
-                self.picker_idx = None
+            self._picker_event(e)
+            if self.picker_idx is not None or e.type != pygame.MOUSEWHEEL:
+                return True                                  # (a wheel notch closes it and scrolls on)
         if not self.collapsed:
             done = self._handle_vars(e)
             if done is not None:
@@ -498,7 +552,7 @@ class Sidebar:
         screen.blit(bar, (area.right - config.SIDEBAR_SCROLLBAR_W - 1, y))
 
     def _draw_picker(self, screen: pygame.Surface, mouse: tuple[int, int]) -> None:
-        """The 20-colour popup: 5 x 4 squares; the row's current colour has a white outline."""
+        """The popup: 5 x 4 named swatches (current one outlined), a separator, the Custom row, a hover tooltip."""
         pygame.draw.rect(screen, config.PICKER_FILL, self.picker_rect, border_radius=6)
         pygame.draw.rect(screen, config.PICKER_BORDER, self.picker_rect, width=2, border_radius=6)
         cur = None
@@ -507,10 +561,30 @@ class Sidebar:
         for k, color in enumerate(config.CURVE_PALETTE_20):
             r = self._picker_cell(k)
             pygame.draw.rect(screen, color, r, border_radius=3)
+            if color == (0, 0, 0) or color == config.PICKER_FILL:
+                pygame.draw.rect(screen, config.PICKER_BORDER, r, width=1, border_radius=3)    # keep Black visible
             if color == cur:
                 pygame.draw.rect(screen, config.TEXT_COLOR, r.inflate(4, 4), width=2, border_radius=4)
             elif r.collidepoint(mouse):
                 pygame.draw.rect(screen, config.ACCENT_COLOR, r.inflate(4, 4), width=1, border_radius=4)
+        p = config.PICKER_PAD
+        y = self._custom_top() - config.PICKER_SEP // 2 - 1
+        pygame.draw.line(screen, config.PICKER_BORDER, (self.picker_rect.left + p, y), (self.picker_rect.right - p, y))
+        self.custom.draw(screen)
+        name = self.picker_tooltip(mouse)
+        if name is not None:
+            cell = self._picker_cell(self.picker_hover(mouse))
+            font = config.PICKER_TIP_FONT
+            w, h = get_font(font).size(name)
+            pad = config.PICKER_TIP_PAD
+            tip = pygame.Rect(0, 0, w + 2 * pad, h + 2 * pad)
+            tip.midtop = (cell.centerx, cell.bottom + 6)
+            if tip.bottom > view.H:
+                tip.midbottom = (cell.centerx, cell.top - 6)
+            tip.clamp_ip(pygame.Rect(0, 0, view.W, view.H))
+            pygame.draw.rect(screen, config.PICKER_TIP_FILL, tip, border_radius=4)
+            pygame.draw.rect(screen, config.PICKER_BORDER, tip, width=1, border_radius=4)
+            draw_text(screen, name, font, config.TEXT_COLOR, tip.center, "center")
 
     def _draw_arrow_button(self, screen: pygame.Surface, rect: pygame.Rect, pointing_right: bool) -> None:
         hover = rect.collidepoint(pygame.mouse.get_pos())
@@ -543,16 +617,16 @@ class Sidebar:
         screen.blit(img, row.topleft)
         if row.collidepoint(mouse) and not self.dragging:
             parts = self._parts(row)
-            for name, label, base in (("edit", "Edit", config.TEXT_COLOR),
-                                      ("delete", "Del", config.DANGER_COLOR)):
+            for name, icon_name, base in (("edit", "pencil", config.TEXT_COLOR),
+                                          ("delete", "trash", config.DANGER_COLOR)):
                 r = parts[name]
                 if r.collidepoint(mouse):
                     pygame.draw.rect(screen, config.BUTTON_HOVER_FILL, r, border_radius=4)
                     pygame.draw.rect(screen, base, r, width=1, border_radius=4)
-                    draw_text(screen, label, config.SIDEBAR_SMALL_FONT, base, r.center, "center")
+                    self._blit_icon(screen, icon_name, r, base)
 
     def _paint_row(self, screen: pygame.Surface, e, status: str, row: pygame.Rect) -> None:
-        """Paint a row's static parts (handle, swatch, text, tag, switch, button labels) onto `row`."""
+        """Paint a row's static parts (handle, swatch, text, tag, switch, pencil / trash icons) onto `row`."""
         dim = status in ("off", "queued")
         pad = config.SIDEBAR_PAD
         cy = row.centery
@@ -582,9 +656,15 @@ class Sidebar:
                       (text_left, cy + 12), "midleft")
 
         self._draw_switch(screen, parts["switch"], e.enabled)
-        for name, label, base in (("edit", "Edit", config.TEXT_COLOR),
-                                  ("delete", "Del", config.DANGER_COLOR)):
-            draw_text(screen, label, config.SIDEBAR_SMALL_FONT, base, parts[name].center, "center")
+        for name, icon_name, base in (("edit", "pencil", config.TEXT_COLOR),
+                                      ("delete", "trash", config.DANGER_COLOR)):
+            self._blit_icon(screen, icon_name, parts[name], base)
+
+    @staticmethod
+    def _blit_icon(screen: pygame.Surface, name: str, rect: pygame.Rect, color: tuple[int, ...]) -> None:
+        """Centre the pencil / trash icon in a button rect (the hit rect stays the whole button)."""
+        img = icons.icon(name, min(config.SIDEBAR_BTN_ICON, rect.h - 4), color)
+        screen.blit(img, img.get_rect(center=rect.center))
 
     @staticmethod
     def _draw_switch(screen: pygame.Surface, r: pygame.Rect, on: bool) -> None:
