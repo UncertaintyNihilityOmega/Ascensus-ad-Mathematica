@@ -13,6 +13,7 @@ os.environ["ASCENSUS_SAVE"] = str(SAVE)         # never touch the real save/equa
 SAVE.unlink(missing_ok=True)
 os.environ["ASCENSUS_PROFILE"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_profile_game_{os.getpid()}.json")
 os.environ["ASCENSUS_SETTINGS"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_settings_game_{os.getpid()}.json")
+os.environ["ASCENSUS_SLOTS"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_slots_{os.getpid()}")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402

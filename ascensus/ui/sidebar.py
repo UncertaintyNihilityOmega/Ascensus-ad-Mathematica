@@ -19,6 +19,7 @@ class Sidebar:
     def __init__(self, manager: EquationManager, input_box: InputBox) -> None:
         self.manager = manager
         self.input = input_box
+        self.on_delete = None                    # optional callback(entry) after Del removed a row (undo toast)
         self.collapsed = False
         self.press_idx: int | None = None        # row pressed on its body (drag candidate)
         self.press_pos = (0, 0)
@@ -412,7 +413,10 @@ class Sidebar:
             self.press_idx, self.press_pos, self.mouse_y = i, pos, pos[1]
 
     def _delete(self, i: int) -> None:
+        entry = self.manager.entries[i]
         self.manager.delete(i)
+        if self.on_delete is not None:
+            self.on_delete(entry)
         ei = self.input.edit_index
         if ei == i:
             self.input.clear()

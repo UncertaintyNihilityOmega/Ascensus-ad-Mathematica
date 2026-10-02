@@ -99,7 +99,8 @@ def restore(data: dict, save_path: Path | None = config.SAVE_PATH, profile=None)
         game._auto_prev = game.upgrades.auto                    # no "auto_on" achievement event on load
         if hasattr(game, "speed"):                              # the time-speed multiplier (P19)
             try:
-                game.speed = _finite(data.get("speed", 1), 0.0) or 1
+                speed = _finite(data.get("speed", 1), 0.0)
+                game.speed = int(speed) if speed.is_integer() and speed >= 1 else 1   # SPEED_STEPS are ints
             except AttributeError:                              # read-only property: leave it
                 pass
     except (KeyError, TypeError, ValueError, IndexError, AttributeError) as err:

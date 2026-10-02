@@ -406,3 +406,5 @@ PICKER_TIP_FONT = 18
 PICKER_TIP_FILL = (30, 36, 62)
 PICKER_TIP_PAD = 4
 PICKER_HEX_MAX = 7                  # "#RRGGBB"
+
+AUTOSAVE_MIN_TIME = 1.0          # no autosave for a run younger than this (seconds of game time)

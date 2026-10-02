@@ -6,7 +6,7 @@ import pygame
 from . import config, display, settings, view
 from .display import set_display          # noqa: F401  (kept importable from here)
 from .profile import get_profile
-from .scenes import QUIT, MenuScene, Scene
+from .scenes import QUIT, GameOverScene, GameScene, MenuScene, Scene
 
 
 def sync_view(scene: Scene) -> pygame.Surface:
@@ -38,6 +38,21 @@ def take_next(scene: Scene) -> "Scene | str | None":
     return nxt
 
 
+def track_game(live: "GameScene | None", scene: Scene) -> "GameScene | None":
+    """The run that is still alive behind the current scene: a GameScene is itself, the menu and the game-over
+    screen mean no run, and a page opened from pause (Settings, Saves, ...) keeps the paused game."""
+    if isinstance(scene, GameScene):
+        return scene
+    if isinstance(scene, (MenuScene, GameOverScene)):
+        return None
+    return live
+
+
+def autosave_live(live: "GameScene | None") -> bool:
+    """Closing the window mid-run: write the autosave of the run that is still going."""
+    return live is not None and live.autosave()
+
+
 def main() -> None:
     pygame.init()
     pygame.display.set_caption(config.TITLE)
@@ -48,11 +63,13 @@ def main() -> None:
     pygame.key.set_repeat(config.KEY_REPEAT_DELAY, config.KEY_REPEAT_INTERVAL)
     clock = pygame.time.Clock()
     scene: Scene = MenuScene()
+    live: GameScene | None = None               # the unfinished run, for the autosave on window close
     running = True
     while running:
         real_dt = min(clock.tick(config.FPS) / 1000.0, config.MAX_DT)
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
+                autosave_live(live)                 # window closed mid-run: Continue picks it up
                 running = False
             elif e.type == pygame.KEYDOWN and e.key == pygame.K_F11:
                 screen = display.toggle()
@@ -72,6 +89,7 @@ def main() -> None:
             running = False
         elif nxt is not None:
             scene = nxt
+            live = track_game(live, scene)
     settings.save()
     get_profile().save()
     pygame.quit()

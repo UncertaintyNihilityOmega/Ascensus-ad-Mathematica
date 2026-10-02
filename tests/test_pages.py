@@ -222,7 +222,7 @@ def test_window_size_applies_live():
 # -- menu and pause ------------------------------------------------------------------------------------------
 def test_menu_buttons_and_best_run():
     menu = MenuScene()
-    assert list(menu.buttons) == ["Play", "Settings", "Library", "Achievements", "Quit"]
+    assert list(menu.buttons) == ["Play", "Saves", "Settings", "Library", "Achievements", "Quit"]
     ys = [b.rect.centery for b in menu.buttons.values()]
     assert ys == sorted(ys) and menu.buttons["Quit"].rect.bottom < view.H
     menu.draw(pygame.display.get_surface())

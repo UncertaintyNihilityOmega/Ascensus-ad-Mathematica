@@ -15,10 +15,12 @@ from .mathparse import EquationError, parse_equation
 from .achievements import AchievementTracker
 from .player import Player
 from .profile import Profile, get_profile
+from .savegame import SlotStore
 from .ui import icons
 from .ui.inputbox import InputBox
 from .ui.sidebar import Sidebar
 from .ui.speed_button import SpeedButton, next_speed
+from .ui.undo_toast import UndoToast
 from .ui.upgrade_panel import UpgradePanel
 from .layout import game_layout
 from .ui.widgets import Button, draw_text, get_font
@@ -36,6 +38,23 @@ def fmt_time(seconds: float) -> str:
 def _button(cx: int, cy: int, label: str) -> Button:
     w, h = config.BUTTON_SIZE
     return Button(pygame.Rect(cx - w // 2, cy - h // 2, w, h), label)
+
+
+def button_stack(n: int, head: int, foot: int = 0) -> tuple[int, list[pygame.Rect]]:
+    """Rects of `n` centred menu buttons under a `head` px title block, with `foot` px left below them.
+
+    The whole block is centred vertically. In a short window the button height and gap shrink (down to
+    24 px buttons) so everything still fits. Returns (top of the block, button rects).
+    """
+    m = 12
+    full_w, full_h = config.BUTTON_SIZE
+    pitch = min(full_h + 12, max((view.H - 2 * m - head - foot) // max(n, 1), 24))
+    gap = 12 if pitch == full_h + 12 else max(int(pitch * 0.18), 4)
+    bh = pitch - gap
+    total = head + n * pitch - gap + foot
+    top = max((view.H - total) // 2, m)
+    w = min(full_w, view.W - 20)
+    return top, [pygame.Rect(view.W // 2 - w // 2, top + head + i * pitch, w, bh) for i in range(n)]
 
 
 class Scene:
@@ -58,12 +77,16 @@ class Scene:
         pass
 
 
-def open_page(name: str, back) -> "Scene | None":
-    """Build the Settings / Library / Achievements page (imported lazily); None if it does not exist yet.
+def open_page(name: str, back, game=None) -> "Scene | None":
+    """Build the Settings / Library / Achievements / Saves page (imported lazily); None if it does not exist.
 
-    `back` is a zero-argument callable returning the Scene the page's Back button leads to.
+    `back` is a zero-argument callable returning the Scene the page's Back button leads to. `game` is only
+    used by the Saves page: the paused GameScene it can save (None from the main menu).
     """
     try:
+        if name == "saves":
+            from .saves_scene import SavesScene
+            return SavesScene(game, back)
         if name == "settings":
             from .settings_scene import SettingsScene
             return SettingsScene(back)
@@ -79,24 +102,34 @@ def open_page(name: str, back) -> "Scene | None":
 
 
 class MenuScene(Scene):
-    """Title, Play / Settings / Library / Achievements / Quit and the best run."""
+    """Title, [Continue (mm:ss)] / Play / Saves / Settings / Library / Achievements / Quit and the best run."""
 
-    LABELS = ("Play", "Settings", "Library", "Achievements", "Quit")
+    LABELS = ("Play", "Saves", "Settings", "Library", "Achievements", "Quit")
 
-    def __init__(self) -> None:
+    def __init__(self, store: SlotStore | None = None) -> None:
         super().__init__()
+        self.store = store if store is not None else SlotStore()
+        info = self.store.autosave_info()
+        self.continue_time: float | None = info.game_t if info is not None else None
         self.play = self.quit = _button(0, 0, "")
         self.buttons: dict[str, Button] = {}
+        self.top = 0
         self.on_resize()
         self.t = 0.0
         self.rebuild_timer = config.MENU_CURVE_REBUILD       # build on the first update
         self.curve_func = parse_equation(config.MENU_CURVE).func
         self.curve_surf: pygame.Surface | None = None
 
+    def _names(self) -> list[str]:
+        return (["Continue"] if self.continue_time is not None else []) + list(self.LABELS)
+
     def on_resize(self) -> None:
-        cx, cy = view.W // 2, view.H // 2
-        gap = config.BUTTON_SIZE[1] + 12
-        self.buttons = {name: _button(cx, cy - 50 + i * gap, name) for i, name in enumerate(self.LABELS)}
+        names = self._names()
+        self.top, rects = button_stack(len(names), 130, 44)
+        self.buttons = {}
+        for name, rect in zip(names, rects):
+            label = f"Continue ({fmt_time(self.continue_time)})" if name == "Continue" else name
+            self.buttons[name] = Button(rect, label)
         self.play, self.quit = self.buttons["Play"], self.buttons["Quit"]
         self.rebuild_timer = config.MENU_CURVE_REBUILD       # redraw the curve at the new size
 
@@ -110,31 +143,46 @@ class MenuScene(Scene):
             self.curve_surf = render_curve(curve.points, config.ACCENT_COLOR)
             self.curve_surf.set_alpha(config.MENU_CURVE_ALPHA)
 
+    def continue_game(self) -> None:
+        """Load the autosave into a GameScene; an unreadable autosave is deleted and the button disappears."""
+        from .savegame import restore
+        data = self.store.load_autosave()
+        try:
+            if data is None:
+                raise ValueError("no autosave")
+            self.next_scene = restore(data)
+        except ValueError:
+            self.store.delete_autosave()
+            self.continue_time = None
+            self.on_resize()
+
     def handle_event(self, e: pygame.event.Event) -> None:
         if self.play.handle_event(e) or (e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN):
             self.next_scene = GameScene()
+        elif "Continue" in self.buttons and self.buttons["Continue"].handle_event(e):
+            self.continue_game()
         elif self.quit.handle_event(e):
             self.next_scene = QUIT
-        elif self.buttons["Settings"].handle_event(e):
-            self.next_scene = open_page("settings", lambda: MenuScene())
-        elif self.buttons["Library"].handle_event(e):
-            self.next_scene = open_page("library", lambda: MenuScene())
-        elif self.buttons["Achievements"].handle_event(e):
-            self.next_scene = open_page("achievements", lambda: MenuScene())
+        else:
+            for name in ("Saves", "Settings", "Library", "Achievements"):
+                if self.buttons[name].handle_event(e):
+                    self.next_scene = open_page(name.lower(), lambda: MenuScene(self.store))
+                    break
 
     def draw(self, screen: pygame.Surface) -> None:
         screen.fill(config.BG_COLOR)
         if self.curve_surf is not None:
             screen.blit(self.curve_surf, (0, 0))
-        cx, cy = view.W // 2, view.H // 2
-        draw_text(screen, config.TITLE, config.TITLE_FONT, config.ACCENT_COLOR, (cx, cy - 180), "center")
+        cx, wmax = view.W // 2, view.W - 40
+        draw_text(screen, config.TITLE, config.TITLE_FONT, config.ACCENT_COLOR, (cx, self.top + 36), "center",
+                  max_w=wmax, min_size=28)
         draw_text(screen, "Survive with equations", config.SUBTITLE_FONT,
-                  config.TEXT_COLOR, (cx, cy - 115), "center")
+                  config.TEXT_COLOR, (cx, self.top + 100), "center", max_w=wmax, min_size=18)
         for b in self.buttons.values():
             b.draw(screen)
         last = self.quit.rect.bottom
         draw_text(screen, get_profile().best_text(), config.BODY_FONT, config.DIM_TEXT_COLOR,
-                  (cx, last + 36), "center")
+                  (cx, last + 24), "center", max_w=wmax, min_size=14)
 
 
 class GameOverScene(Scene):
@@ -218,8 +266,11 @@ class GameScene(Scene):
     """The survival game: player, swarm, HUD and pause overlay."""
 
     def __init__(self, seed: int | None = None, save_path: Path | None = config.SAVE_PATH,
-                 profile: Profile | None = None) -> None:
+                 profile: Profile | None = None, slots: SlotStore | None = None) -> None:
         super().__init__()
+        self.slots = slots if slots is not None else SlotStore()      # where the autosave goes
+        self._autosave_t = 0.0                       # seconds of play since the last autosave
+        self.undo_toast = UndoToast()
         self.profile = profile if profile is not None else get_profile()
         self.tracker: AchievementTracker | None = AchievementTracker(self.profile)
         self.toast: tuple[str, float] | None = None   # (text, seconds left) of the shown unlock toast
@@ -232,6 +283,7 @@ class GameScene(Scene):
         self.equations.store.listener = self.emit     # var_created / var_play -> achievements
         self.input = InputBox()
         self.sidebar = Sidebar(self.equations, self.input)
+        self.sidebar.on_delete = self._equation_deleted
         self.game_t = 0.0
         self.kills = 0
         self.boss_banner = 0.0           # seconds left on the "BOSS INCOMING" banner
@@ -252,6 +304,8 @@ class GameScene(Scene):
         self.grid_lines, self.grid_labels = make_grid()
         self.dots = make_dot_surface()
         self.resume_btn = self.menu_btn = self.stats_btn = self.settings_btn = self.library_btn = _button(0, 0, "")
+        self.saves_btn = _button(0, 0, "")
+        self.pause_top = 0
         self._layout_pause()
 
     @property
@@ -265,11 +319,10 @@ class GameScene(Scene):
         return self.swarm.damage_dealt
 
     def _layout_pause(self) -> None:
-        cx, cy = view.center()
-        gap = config.BUTTON_SIZE[1] + 12
-        names = ("Resume", "Stats", "Settings", "Library", "Main Menu")
-        (self.resume_btn, self.stats_btn, self.settings_btn, self.library_btn,
-         self.menu_btn) = (_button(cx, cy - 70 + i * gap, n) for i, n in enumerate(names))
+        names = ("Resume", "Stats", "Saves", "Settings", "Library", "Main Menu")
+        self.pause_top, rects = button_stack(len(names), 70)
+        (self.resume_btn, self.stats_btn, self.saves_btn, self.settings_btn, self.library_btn,
+         self.menu_btn) = (Button(r, n) for r, n in zip(rects, names))
 
     @staticmethod
     def _page_sig() -> tuple:
@@ -307,6 +360,7 @@ class GameScene(Scene):
         """Re-lay-out widgets, rebuild background surfaces and recompute every curve."""
         self.sidebar.on_resize()
         self.speed_button.on_resize()
+        self.undo_toast.on_resize()
         self.layout_bottom()
         self.equations.on_resize()
         self.grid_lines, self.grid_labels = make_grid()
@@ -336,16 +390,26 @@ class GameScene(Scene):
             elif self.stats_btn.handle_event(e):
                 from .pages import StatsScene
                 self.next_scene = StatsScene(self, self._return_here)
+            elif self.saves_btn.handle_event(e):
+                self.next_scene = open_page("saves", self._return_here, game=self)
             elif self.settings_btn.handle_event(e):
                 self.next_scene = open_page("settings", self._return_here)
             elif self.library_btn.handle_event(e):
                 self.next_scene = open_page("library", self._return_here)
             elif self.menu_btn.handle_event(e):
                 self.finish_run()
-                self.next_scene = MenuScene()
+                self.autosave()
+                self.next_scene = MenuScene(self.slots)
             return
         if self.sidebar.picker_idx is not None:       # the colour popup is modal
             self.sidebar.handle_event(e)
+            return
+        if self.undo_toast.handle_event(e):
+            self.undo()
+            return
+        if (e.type == pygame.KEYDOWN and e.key == pygame.K_z and e.mod & pygame.KMOD_CTRL
+                and not (self.input.focused or self.sidebar.value_focused)):
+            self.undo()
             return
         if self.speed_button.handle_event(e):
             self.speed = next_speed(self.speed)
@@ -369,6 +433,29 @@ class GameScene(Scene):
                 self.show_fps = not self.show_fps
         elif controls.is_dash_event(e):              # right-click in Mouse mode
             self._dash(e)
+
+    # --- undo delete and autosave ---------------------------------------------------------------------
+    def _equation_deleted(self, entry) -> None:
+        """The sidebar's Del removed `entry`: offer 'Deleted <name> - Undo' for a few seconds."""
+        self.undo_toast.show(entry.parsed.name or entry.text)
+
+    def undo(self) -> bool:
+        """Bring back the last deleted equation (Ctrl+Z or the toast); True when one came back."""
+        entry = self.equations.undo_delete()
+        self.undo_toast.hide()
+        if entry is None:
+            return False
+        ei = self.input.edit_index
+        if ei is not None and self.equations.entries.index(entry) <= ei:
+            self.input.edit_index = ei + 1           # the equation being edited moved down one row
+        return True
+
+    def autosave(self) -> bool:
+        """Write the autosave (Continue loads it); nothing for a dead or brand-new run."""
+        self._autosave_t = 0.0
+        if not self.player.alive or self.game_t < config.AUTOSAVE_MIN_TIME:
+            return False
+        return self.slots.autosave(self)
 
     def _dash(self, e: pygame.event.Event) -> None:
         """Dash on the dash key, or on a right-click (toward the cursor, unless it is over the UI)."""
@@ -437,8 +524,12 @@ class GameScene(Scene):
         if self.sidebar.collapsed != self._layout_collapsed:       # collapsing frees / uses space
             self.layout_bottom()
         self._update_toast(real_dt)
+        self.undo_toast.update(real_dt)
         if self.paused:
             return
+        self._autosave_t += real_dt
+        if self._autosave_t >= config.AUTOSAVE_PERIOD:
+            self.autosave()
         self.boss_banner = max(0.0, self.boss_banner - real_dt)
         direction, face = self._move_input()
         total = real_dt * self.speed * self.time_scale()
@@ -481,6 +572,7 @@ class GameScene(Scene):
             self.buy(stat)
         if not self.player.alive:
             self.finish_run()
+            self.slots.delete_autosave()
             self.next_scene = GameOverScene(self.game_t, self.kills)
 
     def draw(self, screen: pygame.Surface) -> None:
@@ -522,6 +614,7 @@ class GameScene(Scene):
                       (view.W - m, m + 2 * lh), "topright")
         self.upgrade_panel.draw(screen)
         self._draw_toast(screen)
+        self.undo_toast.draw(screen)
         if self.boss_banner > 0:
             draw_text(screen, "BOSS INCOMING", config.BOSS_BANNER_FONT, config.BOSS_COLOR,
                       (view.W // 2, view.H // 4), "center")
@@ -530,6 +623,8 @@ class GameScene(Scene):
         dim = pygame.Surface((view.W, view.H), pygame.SRCALPHA)
         dim.fill((0, 0, 0, config.PAUSE_DIM_ALPHA))
         screen.blit(dim, (0, 0))
-        draw_text(screen, "PAUSED", config.TITLE_FONT, config.TEXT_COLOR, (view.W // 2, view.H // 2 - 160), "center")
-        for b in (self.resume_btn, self.stats_btn, self.settings_btn, self.library_btn, self.menu_btn):
+        draw_text(screen, "PAUSED", config.TITLE_FONT, config.TEXT_COLOR, (view.W // 2, self.pause_top + 28),
+                  "center", max_w=view.W - 40, min_size=28)
+        for b in (self.resume_btn, self.stats_btn, self.saves_btn, self.settings_btn, self.library_btn,
+                  self.menu_btn):
             b.draw(screen)

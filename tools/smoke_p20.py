@@ -155,8 +155,78 @@ def phase(screen) -> None:
     print("  undo OK")
 
     shutil.rmtree(slots_dir, ignore_errors=True)
+    glue_phase(screen)
     view.set_size(*old_size)
     pygame.display.set_mode(old_size)
+
+
+def glue_phase(screen) -> None:
+    """Menu / pause lists, Continue, autosave rules, Saves from pause, Del + undo toast and Ctrl+Z."""
+    from ascensus.scenes import GameOverScene, MenuScene
+    default = SlotStore()                                    # the folder games autosave to (ASCENSUS_SLOTS)
+    shutil.rmtree(default.dir, ignore_errors=True)
+    for w, h in ((800, 600), (1280, 720), (1920, 1080)):
+        view.set_size(w, h)
+        screen = pygame.display.set_mode((w, h))
+        game = _play(screen)
+        game.slots = default
+        widgets.reset_overflow()
+        game.paused = True
+        game.on_resize()
+        _step(game, screen)
+        names = [b.label for b in (game.resume_btn, game.stats_btn, game.saves_btn, game.settings_btn,
+                                   game.library_btn, game.menu_btn)]
+        assert names == ["Resume", "Stats", "Saves", "Settings", "Library", "Main Menu"]
+        # Pause -> Saves -> Back returns the same paused game
+        _click(game, game.saves_btn.rect.center)
+        page = game.next_scene
+        game.next_scene = None
+        assert isinstance(page, SavesScene) and page.game is game
+        _step(page, screen)
+        _click(page, page.back_btn.rect.center)
+        assert page.next_scene is game and game.paused
+        # Pause -> Main Menu writes the autosave; the menu then offers Continue (mm:ss) above Play
+        default.delete_autosave()
+        _click(game, game.menu_btn.rect.center)
+        menu = game.next_scene
+        game.next_scene = None
+        assert isinstance(menu, MenuScene) and default.has_autosave()
+        assert list(menu.buttons)[:2] == ["Continue", "Play"] and menu.buttons["Continue"].label.startswith("Continue (")
+        for _ in range(3):
+            _step(menu, screen)
+        rects = [b.rect for b in menu.buttons.values()]
+        assert all(pygame.Rect(0, 0, w, h).contains(r) for r in rects)
+        assert all(a.bottom <= b.top for a, b in zip(rects, rects[1:]))
+        _click(menu, menu.buttons["Continue"].rect.center)
+        cont = menu.next_scene
+        assert isinstance(cont, GameScene) and abs(cont.game_t - game.game_t) < 1e-9
+        assert widgets.overflow_count == 0, widgets.overflow_log
+
+        # Autosave on the 60 s timer, deleted on game over
+        cont.slots = default
+        default.delete_autosave()
+        cont._autosave_t = config.AUTOSAVE_PERIOD - 0.01
+        for _ in range(3):
+            _step(cont, screen)
+        assert default.has_autosave()
+
+        # Del -> toast -> Undo click, then Del -> Ctrl+Z
+        fm, names0 = cont.equations, [e.text for e in cont.equations.entries]
+        _click(cont, cont.sidebar.rects(0)["delete"].center)
+        assert cont.undo_toast.active and len(fm.entries) == len(names0) - 1
+        _step(cont, screen)
+        _click(cont, cont.undo_toast.undo_rect.center)
+        assert [e.text for e in fm.entries] == names0
+        _click(cont, cont.sidebar.rects(1)["delete"].center)
+        cont.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_z, mod=pygame.KMOD_CTRL, unicode=""))
+        assert [e.text for e in fm.entries] == names0 and not cont.undo_toast.active
+
+        cont.player.hp = 0.0
+        _step(cont, screen)
+        assert isinstance(cont.next_scene, GameOverScene) and not default.has_autosave()
+    print("  menu / pause / continue / autosave / undo glue OK at 800x600, 1280x720, 1920x1080")
+    shutil.rmtree(default.dir, ignore_errors=True)
+    config.SAVE_PATH.unlink(missing_ok=True)                 # Continue wrote its equations here; later phases start empty
 
 
 def main() -> None:
