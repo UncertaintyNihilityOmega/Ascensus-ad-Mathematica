@@ -46,15 +46,25 @@ class Player:
         self.dash_count += 1
         return True
 
-    def update(self, dt: float, direction: tuple[float, float]) -> None:
+    def face(self, vec: tuple[float, float]) -> None:
+        """Turn toward a (dx, dy) vector (any length, ignored when zero or mid-dash)."""
+        n = math.hypot(vec[0], vec[1])
+        if n > 0 and not self.dashing:
+            self.facing = np.array((vec[0], vec[1])) / n
+
+    def update(self, dt: float, direction: tuple[float, float],
+               face: tuple[float, float] | None = None) -> None:
         """Move along a (dx, dy) screen direction (y down); diagonals are normalized.
 
+        `face` (Mouse mode: toward the cursor) overrides the facing the walk would set.
         A dash overrides walking; the player regenerates slowly and never exceeds max HP.
         """
         dx, dy = direction
         n = math.hypot(dx, dy)
         if n > 0:
             self.facing = np.array((dx, dy)) / n
+        if face is not None:
+            self.face(face)
         if self.dashing:
             step = min(dt, self.dash_left)
             self.pos += self.facing * (config.DASH_DIST / config.DASH_TIME) * step

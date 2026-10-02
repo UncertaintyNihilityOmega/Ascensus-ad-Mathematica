@@ -1,12 +1,13 @@
 """Scenes: Menu, Game (with pause overlay) and GameOver."""
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import numpy as np
 import pygame
 
-from . import config, view
+from . import config, controls, view
 from .curvefield import build_curve, render_curve
 from .enemies import Spawner, Swarm
 from .equations import EquationManager
@@ -17,6 +18,7 @@ from .profile import Profile, get_profile
 from .ui import icons
 from .ui.inputbox import InputBox
 from .ui.sidebar import Sidebar
+from .ui.speed_button import SpeedButton, next_speed
 from .ui.upgrade_panel import UpgradePanel
 from .layout import game_layout
 from .ui.widgets import Button, draw_text, get_font
@@ -242,6 +244,8 @@ class GameScene(Scene):
         self.upgrades = Upgrades()                   # per-run XP and stats
         self._auto_prev = False                      # to emit auto_on when Auto is switched on
         self.upgrade_panel = UpgradePanel(self.upgrades, self.buy)
+        self.speed = 1                               # game speed 1x/2x/3x (per run; the speed button cycles it)
+        self.speed_button = SpeedButton()
         self._layout_collapsed = False
         self.layout_bottom()
         self.direction_override: tuple[float, float] | None = None   # tests/smoke only
@@ -302,6 +306,7 @@ class GameScene(Scene):
     def on_resize(self) -> None:
         """Re-lay-out widgets, rebuild background surfaces and recompute every curve."""
         self.sidebar.on_resize()
+        self.speed_button.on_resize()
         self.layout_bottom()
         self.equations.on_resize()
         self.grid_lines, self.grid_labels = make_grid()
@@ -310,19 +315,18 @@ class GameScene(Scene):
         self._seen = self._page_sig()
 
     def time_scale(self) -> float:
-        """Slow-mo while typing or dragging a sidebar row."""
+        """Slow-mo while typing or dragging a sidebar row (the speed button's multiplier is separate)."""
         slow = self.input.focused or self.sidebar.dragging or self.sidebar.value_focused
         return config.TYPING_TIME_SCALE if slow else 1.0
 
-    def _direction(self) -> tuple[float, float]:
+    def _move_input(self) -> tuple[tuple[float, float], tuple[float, float] | None]:
+        """(walk direction, facing override) from the keys or the mouse (see controls.read_movement)."""
         if self.direction_override is not None:
-            return self.direction_override
-        if self.input.focused or self.sidebar.value_focused:
-            return 0.0, 0.0
-        k = pygame.key.get_pressed()
-        dx = (k[pygame.K_d] or k[pygame.K_RIGHT]) - (k[pygame.K_a] or k[pygame.K_LEFT])
-        dy = (k[pygame.K_s] or k[pygame.K_DOWN]) - (k[pygame.K_w] or k[pygame.K_UP])
-        return float(dx), float(dy)
+            return self.direction_override, None
+        return controls.read_movement(self)
+
+    def _direction(self) -> tuple[float, float]:
+        return self._move_input()[0]
 
     def handle_event(self, e: pygame.event.Event) -> None:
         if self.paused:
@@ -343,6 +347,9 @@ class GameScene(Scene):
         if self.sidebar.picker_idx is not None:       # the colour popup is modal
             self.sidebar.handle_event(e)
             return
+        if self.speed_button.handle_event(e):
+            self.speed = next_speed(self.speed)
+            return
         if self.upgrade_panel.handle_event(e) or self.sidebar.handle_event(e):
             return
         was_focused = self.input.focused
@@ -354,13 +361,23 @@ class GameScene(Scene):
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_ESCAPE:
                 self.paused = True
-            elif e.key == pygame.K_r:
-                if self.player.start_dash():
-                    self.emit("dash")
+            elif controls.is_dash_event(e):
+                self._dash(e)
             elif e.key == pygame.K_g:
                 self.show_grid = not self.show_grid
             elif e.key == pygame.K_F3:
                 self.show_fps = not self.show_fps
+        elif controls.is_dash_event(e):              # right-click in Mouse mode
+            self._dash(e)
+
+    def _dash(self, e: pygame.event.Event) -> None:
+        """Dash on the dash key, or on a right-click (toward the cursor, unless it is over the UI)."""
+        if e.type == pygame.MOUSEBUTTONDOWN:
+            if controls.mouse_over_ui(self, e.pos):
+                return
+            self.player.face(controls.aim(e.pos))
+        if self.player.start_dash():
+            self.emit("dash")
 
     def buy(self, stat: str) -> bool:
         """Buy one level of `stat`; Max HP also raises the player's cap and heals."""
@@ -422,10 +439,20 @@ class GameScene(Scene):
         self._update_toast(real_dt)
         if self.paused:
             return
-        dt = real_dt * self.time_scale()
-        self.game_t += dt
         self.boss_banner = max(0.0, self.boss_banner - real_dt)
-        self.player.update(dt, self._direction())
+        direction, face = self._move_input()
+        total = real_dt * self.speed * self.time_scale()
+        n = min(max(1, math.ceil(total / config.SIM_MAX_SUBSTEP - 1e-9)), config.SIM_MAX_SUBSTEPS)
+        for _ in range(n):                   # substeps <= SIM_MAX_SUBSTEP so fast play does not tunnel
+            self._sim_step(total / n, direction, face)
+            if not self.player.alive:
+                break
+
+    def _sim_step(self, dt: float, direction: tuple[float, float],
+                  face: tuple[float, float] | None) -> None:
+        """Advance the simulation by `dt` game seconds."""
+        self.game_t += dt
+        self.player.update(dt, direction, face)
         # contact uses last frame's resolved positions; knockback only when the hit lands
         if self.player.take_damage(self.swarm.contact_damage(self.player.pos, config.PLAYER_RADIUS)):
             self.swarm.knockback(self.player.pos, config.PLAYER_RADIUS)
@@ -482,6 +509,7 @@ class GameScene(Scene):
         m = config.HUD_MARGIN
         draw_text(screen, fmt_time(self.game_t), config.HUD_TIMER_FONT, config.TEXT_COLOR,
                   (view.W // 2, m), "midtop")
+        self.speed_button.draw(screen, self.speed)
         font, lh = config.HUD_TEXT_FONT, config.HUD_LINE_H
         skull = icons.skull(font, config.HUD_KILL_COLOR)                # "12 :" + skull, right-aligned
         screen.blit(skull, skull.get_rect(topright=(view.W - m, m)))

@@ -90,7 +90,7 @@ def test_kill_boss_kill_upgrade_dash_and_tick_events():
     sc.upgrades.xp = 10_000
     assert sc.buy("base_dmg") and sc.profile.is_unlocked("investor")
     sc.profile.lifetime["dashes"] = config.ACH_DASH_COUNT - 1
-    key(sc, pygame.K_r)
+    key(sc, pygame.K_j)
     assert sc.profile.get_lifetime("dashes") == config.ACH_DASH_COUNT and sc.profile.is_unlocked("dash_addict")
     sc.game_t = config.ACH_SURVIVOR_TIME
     sc.update(0.016)

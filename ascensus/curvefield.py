@@ -107,30 +107,85 @@ def build_curve(f: CurveFunc, t: float = 0.0, step: int | None = None,
     return CurveData(points, _dilate(occ, config.HIT_DILATE), length)
 
 
+_PAD = 8                                        # transparent margin around the alpha buffer (px)
+_kernels: dict[tuple, list[tuple[int, int, int]]] = {}
+
+
+def relative_luminance(color: tuple[int, int, int]) -> float:
+    """WCAG relative luminance of an sRGB colour: 0 (black) to 1 (white)."""
+    lin = [((c / 255 + 0.055) / 1.055) ** 2.4 if c / 255 > 0.04045 else c / 255 / 12.92 for c in color[:3]]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def stamp_kernel(full_r: float, end_r: float, peak: int, power: float) -> list[tuple[int, int, int]]:
+    """Radial stamp as (dx, dy, value) offsets sorted by ascending value, zero entries left out.
+
+    value = peak for r <= full_r, then falls as (1 - (r - full_r) / (end_r - full_r)) ** power to 0 at end_r.
+    Cached by its arguments (the config can change at runtime).
+    """
+    key = (full_r, end_r, peak, power)
+    if key not in _kernels:
+        n = int(math.ceil(end_r)) - 1
+        out = []
+        for dx in range(-n, n + 1):
+            for dy in range(-n, n + 1):
+                r = math.hypot(dx, dy)
+                k = 1.0 if r <= full_r else max(0.0, 1.0 - (r - full_r) / (end_r - full_r)) ** power
+                v = int(round(peak * k))
+                if v > 0:
+                    out.append((dx, dy, v))
+        _kernels[key] = sorted(out, key=lambda o: o[2])
+    return _kernels[key]
+
+
+def _stamp(points: np.ndarray, w: int, h: int, kernel: list[tuple[int, int, int]]) -> np.ndarray:
+    """Max-stamp `kernel` at every point; returns uint8 (w + 2*_PAD, h + 2*_PAD), indexed [x, y].
+
+    Writing the offsets in ascending value order with plain assignment equals one np.maximum.at per
+    offset (a later, larger value always wins) but is several times faster. The padding removes every
+    per-offset bounds check; points more than 4 px outside the window are dropped.
+    """
+    stride = h + 2 * _PAD
+    alpha = np.zeros((w + 2 * _PAD) * stride, dtype=np.uint8)
+    ix = np.rint(points[:, 0]).astype(np.int64)
+    iy = np.rint(points[:, 1]).astype(np.int64)
+    ok = (ix >= -4) & (ix < w + 4) & (iy >= -4) & (iy < h + 4)
+    base = (ix[ok] + _PAD) * stride + (iy[ok] + _PAD)
+    for dx, dy, v in kernel:
+        alpha[base + (dx * stride + dy)] = v
+    return alpha.reshape(w + 2 * _PAD, stride)
+
+
 def render_curve(points: np.ndarray, color: tuple[int, int, int],
                  size: tuple[int, int] | None = None):
-    """Neon line: 3 px core + soft glow as per-pixel alpha. Use surf.set_alpha(a) when drawing."""
+    """Smooth neon line: a soft radial kernel stamped at every point (see config CURVE_KERNEL_*).
+
+    Colours darker than DARK_LUMINANCE also get a light halo so black stays visible.
+    Use surf.set_alpha(a) when drawing.
+    """
     import pygame
 
     w, h = size if size is not None else (view.W, view.H)
-    alpha = np.zeros((w, h), dtype=np.uint8)             # indexed [x, y] like surfarray
-    if len(points):
-        ix = np.rint(points[:, 0]).astype(np.int32)
-        iy = np.rint(points[:, 1]).astype(np.int32)
-
-        def stamp(r: int, value: int) -> None:
-            """Square dilation done on the (few) points instead of the whole screen."""
-            for dx in range(-r, r + 1):
-                for dy in range(-r, r + 1):
-                    x, y = ix + dx, iy + dy
-                    ok = (x >= 0) & (x < w) & (y >= 0) & (y < h)
-                    alpha[x[ok], y[ok]] = value
-
-        stamp(config.CORE_DILATE + config.GLOW_DILATE, config.GLOW_ALPHA)
-        stamp(config.CORE_DILATE, 255)
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
     surf.fill(color)
+    if len(points) == 0:
+        surf.fill((*color[:3], 0))
+        return surf
+    k = stamp_kernel(config.CURVE_KERNEL_FULL_R, config.CURVE_KERNEL_END_R, 255, config.CURVE_KERNEL_POWER)
+    core = _stamp(points, w, h, k)[_PAD:_PAD + w, _PAD:_PAD + h]
+    alpha, halo = core, None
+    if relative_luminance(color) < config.DARK_LUMINANCE:
+        k = stamp_kernel(config.HALO_FULL_R, config.HALO_END_R, config.HALO_ALPHA, config.CURVE_KERNEL_POWER)
+        halo = _stamp(points, w, h, k)[_PAD:_PAD + w, _PAD:_PAD + h]
+        alpha = np.maximum(core, halo)
     buf = pygame.surfarray.pixels_alpha(surf)            # indexed [x, y]
     buf[:] = alpha
     del buf
+    if halo is not None:                                 # light fringe: blend the colour toward the halo colour
+        m = (halo > 0) & (core < 255)
+        t = (core[m].astype(np.float32) / 255)[:, None]
+        rgb = np.array(color[:3], np.float32) * t + np.array(config.HALO_COLOR, np.float32) * (1 - t)
+        pix = pygame.surfarray.pixels3d(surf)
+        pix[m] = rgb.astype(np.uint8)
+        del pix
     return surf

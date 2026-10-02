@@ -24,6 +24,10 @@ def test_every_key_exists_in_config_and_matches_kind():
         d = settings.default(s.key)
         if s.kind == "bool":
             assert isinstance(d, bool), s.key
+        elif s.kind == "choice":
+            assert d in s.choices, s.key
+        elif s.kind == "key":
+            assert isinstance(d, str) and d, s.key
         else:
             assert isinstance(d, (int, float)) and not isinstance(d, bool), s.key
             assert s.min <= d <= s.max, f"{s.key} default {d} outside [{s.min}, {s.max}]"
@@ -32,7 +36,7 @@ def test_every_key_exists_in_config_and_matches_kind():
 
 
 def test_tabs_exactly_as_designed():
-    assert settings.tabs() == ["Display", "Player", "Enemies", "Boss", "Combat",
+    assert settings.tabs() == ["Display", "Controls", "Player", "Enemies", "Boss", "Combat",
                                "Upgrades & XP", "Equations & Variables"]
     for tab in settings.tabs():
         assert settings.settings_for(tab)

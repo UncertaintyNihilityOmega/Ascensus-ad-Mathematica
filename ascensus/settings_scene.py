@@ -8,6 +8,7 @@ import pygame
 from . import config, display, settings, view
 from .scenes import Scene
 from .settings import Setting
+from .ui.keyfield import KeyField
 from .ui.widgets import Button, IconButton, NumberField, ScrollArea, Tabs, draw_text, fmt_number, get_font
 
 LIVE_KEYS = frozenset({"FULLSCREEN_START", "WINDOW_FRACTION", "UNIT_PX", "GRID_STEP"})   # apply at once
@@ -56,6 +57,7 @@ class SettingsScene(Scene):
         self.plus: dict[str, IconButton] = {}
         self.reset_btn: dict[str, IconButton] = {}
         self.value_rect: dict[str, pygame.Rect] = {}          # switch (bool) or cycle button (choice)
+        self.keyfields: dict[str, KeyField] = {}              # key-binding rows (kind "key")
         for s in settings.SETTINGS:
             dummy = pygame.Rect(0, 0, 10, 10)
             self.minus[s.key], self.plus[s.key] = IconButton(dummy, "minus"), IconButton(dummy, "plus")
@@ -63,6 +65,8 @@ class SettingsScene(Scene):
             self.value_rect[s.key] = pygame.Rect(dummy)
             if s.kind in ("int", "float"):
                 self.fields[s.key] = NumberField(dummy, settings.get(s.key), s.kind == "int", s.min, s.max)
+            elif s.kind == "key":
+                self.keyfields[s.key] = KeyField(dummy, str(settings.get(s.key)))
         self.on_resize()
 
     # -- model ---------------------------------------------------------------------------------------
@@ -96,6 +100,8 @@ class SettingsScene(Scene):
             self.set_value(fk, self.fields[fk].value)
         for f in self.fields.values():
             f.focused = False
+        for kf in self.keyfields.values():
+            kf.cancel()
         self.area.set_content_height(len(self.rows()) * config.SET_ROW_H)
         self.area.set_scroll(0)
         self._sync_fields()
@@ -108,6 +114,8 @@ class SettingsScene(Scene):
         for key, f in self.fields.items():
             if not f.focused:
                 f.set_value(settings.get(key))
+        for key, kf in self.keyfields.items():
+            kf.name = str(settings.get(key))
 
     def _snapshot(self) -> dict[str, object]:
         return {s.key: settings.get(s.key) for s in settings.SETTINGS}
@@ -137,11 +145,7 @@ class SettingsScene(Scene):
         """The [-] / [+] buttons (toggle for bool, cycle for choice)."""
         s = settings.find(key)
         before = self._snapshot()
-        if s.kind == "choice" and s.choices:
-            i = (s.choices.index(settings.get(key)) + direction) % len(s.choices)
-            settings.set_value(key, s.choices[i])
-        else:
-            settings.nudge(key, direction)
+        settings.nudge(key, direction)
         self._commit(before)
 
     def reset_one(self, key: str) -> None:
@@ -162,6 +166,8 @@ class SettingsScene(Scene):
     def leave(self) -> None:
         for f in self.fields.values():
             f.focused = False
+        for kf in self.keyfields.values():
+            kf.cancel()
         settings.save()
         self.next_scene = self.back()
 
@@ -197,7 +203,7 @@ class SettingsScene(Scene):
         if s.kind == "bool":
             w, h = config.SET_SWITCH_SIZE
             out["switch"] = pygame.Rect(plus.right - w, cy - h // 2, w, h)
-        elif s.kind == "choice":
+        elif s.kind in ("choice", "key"):
             out["cycle"] = pygame.Rect(minus.left, cy - config.SET_CTRL_H // 2,
                                        plus.right - minus.left, config.SET_CTRL_H)
         return out
@@ -220,10 +226,28 @@ class SettingsScene(Scene):
             self.value_rect[s.key] = r.get("switch") or r.get("cycle") or r["field"]
             if s.key in self.fields:
                 self.fields[s.key].set_rect(r["field"])
+            if s.key in self.keyfields:
+                self.keyfields[s.key].set_rect(r["cycle"])
 
     # -- events --------------------------------------------------------------------------------------
+    def listening_key(self) -> str | None:
+        """The key of the key-binding row waiting for a key press, if any."""
+        return next((k for k, kf in self.keyfields.items() if kf.listening), None)
+
+    def _bind_key(self, key: str, e: pygame.event.Event) -> bool:
+        """Feed an event to a key-binding row; True when the event is used up (key presses always are)."""
+        kf = self.keyfields[key]
+        name = kf.handle_event(e)
+        if name is not None:
+            self.set_value(key, name)
+        return e.type in (pygame.KEYDOWN, pygame.TEXTINPUT)
+
     def handle_event(self, e: pygame.event.Event) -> None:
         self._place()
+        lk = self.listening_key()
+        if lk is not None and e.type in (pygame.KEYDOWN, pygame.TEXTINPUT):
+            self._bind_key(lk, e)                              # the next key press is the binding (Esc cancels)
+            return
         fk = self.focused_key()
         if fk is not None and e.type in (pygame.KEYDOWN, pygame.TEXTINPUT):
             if e.type == pygame.KEYDOWN and e.key == pygame.K_TAB:
@@ -254,6 +278,10 @@ class SettingsScene(Scene):
 
     def _click(self, e: pygame.event.Event) -> None:
         inside = self.area.contains(e.pos)
+        for s in self.rows():
+            if s.key in self.keyfields:
+                if inside or self.keyfields[s.key].listening:
+                    self._bind_key(s.key, e)     # click toggles listening; a click elsewhere cancels
         for s in self.rows():                    # only the visible tab's fields: hidden ones keep stale rects
             f = self.fields.get(s.key)
             if f is not None and (f.focused or (inside and f.rect.collidepoint(e.pos))):
@@ -271,6 +299,8 @@ class SettingsScene(Scene):
                     if btn.handle_event(e):
                         self.nudge(k, d)
                         return
+            elif s.kind == "key":
+                continue                                       # handled above
             elif self.value_rect[k].collidepoint(e.pos):
                 self.nudge(k, +1)                              # toggle switch / cycle choice
                 return
@@ -312,6 +342,8 @@ class SettingsScene(Scene):
         self.reset_btn[k].draw(screen)
         if s.kind == "bool":
             draw_switch(screen, r["switch"], bool(settings.get(k)))
+        elif s.kind == "key":
+            self.keyfields[k].draw(screen)
         elif s.kind == "choice":
             pygame.draw.rect(screen, config.INPUT_FILL, r["cycle"], border_radius=6)
             pygame.draw.rect(screen, config.INPUT_BORDER, r["cycle"], width=2, border_radius=6)

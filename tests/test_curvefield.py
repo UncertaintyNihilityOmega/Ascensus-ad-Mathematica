@@ -137,3 +137,89 @@ def test_render_empty_points():
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     surf = render_curve(np.zeros((0, 2), np.float32), (255, 0, 0), (100, 50))
     assert surf.get_size() == (100, 50)
+
+
+# -- P19: smooth kernel and dark halo ---------------------------------------------------------------------
+def _alpha(points, color, size):
+    import pygame
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    return pygame.surfarray.array_alpha(render_curve(points, color, size))
+
+
+def test_kernel_shape_full_core_and_zero_at_end_radius():
+    from ascensus.curvefield import stamp_kernel
+    k = stamp_kernel(1.5, 4.0, 255, 2.0)
+    assert len({(dx, dy) for dx, dy, _ in k}) == len(k) and max(max(abs(dx), abs(dy)) for dx, dy, _ in k) == 3
+    vals = {(dx, dy): v for dx, dy, v in k}
+    assert all(vals[o] == 255 for o in vals if (o[0] ** 2 + o[1] ** 2) ** 0.5 <= 1.5)
+    assert (3, 3) not in vals and (4, 0) not in vals                      # r >= 4 is zero
+    assert [v for _, _, v in k] == sorted(v for _, _, v in k)             # ascending, so assignment == maximum
+    assert vals[(2, 0)] > vals[(3, 0)] > 0
+
+
+def test_stamp_equals_np_maximum_at():
+    from ascensus.curvefield import _PAD, _stamp, stamp_kernel
+    rng = np.random.default_rng(0)
+    pts = rng.uniform(0, 60, (200, 2)).astype(np.float32)
+    k = stamp_kernel(1.5, 4.0, 255, 2.0)
+    got = _stamp(pts, 60, 60, k)[_PAD:_PAD + 60, _PAD:_PAD + 60]
+    ref = np.zeros((60, 60), np.uint8)
+    ix, iy = np.rint(pts[:, 0]).astype(int), np.rint(pts[:, 1]).astype(int)
+    for dx, dy, v in k:
+        x, y = ix + dx, iy + dy
+        ok = (x >= 0) & (x < 60) & (y >= 0) & (y < 60)
+        np.maximum.at(ref, (x[ok], y[ok]), v)
+    assert np.array_equal(got, ref)
+
+
+def test_diagonal_line_has_no_beading():
+    c = curve("y = x")
+    alpha = _alpha(c.points, (0, 255, 255), (W, H))
+    off = (W + H) / 2 - 1                         # screen y = off - x for y = x
+    xs = np.arange(W // 2 - 150, W // 2 + 150)
+    vals = np.array([alpha[x, int(round(off - x))] for x in xs], dtype=float)
+    assert vals.min() >= 230 and vals.std() < 8, (vals.min(), vals.std())
+
+
+def test_horizontal_and_steep_lines_have_no_beading():
+    for text in ("y = 0", "y = 0.3 x", "y = 3 x"):
+        c = curve(text)
+        alpha = _alpha(c.points, (0, 255, 255), (W, H))
+        ys, xs = np.nonzero(alpha.T == 255)
+        assert len(xs) > 200
+        # every sampled root point sits on a full-alpha pixel; the neighbours along the line are covered too
+        px = np.rint(c.points).astype(int)
+        px = px[(px[:, 0] >= 0) & (px[:, 0] < W) & (px[:, 1] >= 0) & (px[:, 1] < H)]
+        assert (alpha[px[:, 0], px[:, 1]] == 255).all(), text
+
+
+def test_relative_luminance_values():
+    from ascensus.curvefield import relative_luminance
+    assert relative_luminance((0, 0, 0)) == 0 and abs(relative_luminance((255, 255, 255)) - 1) < 1e-6
+    assert relative_luminance((70, 74, 88)) < config.DARK_LUMINANCE        # Graphite gets a halo
+    assert relative_luminance((128, 134, 150)) > config.DARK_LUMINANCE     # Gray does not
+
+
+def test_dark_curve_gets_light_halo_and_bright_curve_does_not():
+    import pygame
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    c = curve("x = 0")
+    cx = int(W / 2 - 0.5)
+    black = render_curve(c.points, (0, 0, 0), (W, H))
+    assert tuple(black.get_at((cx, 300)))[:3] == (0, 0, 0) and black.get_at((cx, 300)).a == 255   # core stays black
+    halo = black.get_at((cx + 4, 300))
+    assert halo.a > 0 and min(halo[:3]) > 120                              # light fringe right outside the core
+    assert black.get_at((cx + 12, 300)).a == 0
+    cyan = render_curve(c.points, (0, 255, 255), (W, H))
+    assert tuple(cyan.get_at((cx + 3, 300)))[:3] == (0, 255, 255)           # no halo: still the curve colour
+    assert black.get_at((cx + 4, 300)).a <= config.HALO_ALPHA
+    # halo alpha never dims the core
+    a_black = pygame.surfarray.array_alpha(black)
+    a_cyan = pygame.surfarray.array_alpha(cyan)
+    assert (a_black >= a_cyan).all()
+
+
+def test_render_points_outside_the_surface_are_safe():
+    pts = np.array([[-50, -50], [-2, 10], [1e4, 5], [5, 1e4], [3, 3]], np.float32)
+    a = _alpha(pts, (255, 255, 255), (20, 20))
+    assert a.shape == (20, 20) and a[3, 3] == 255 and a[0, 10] > 0

@@ -37,7 +37,7 @@ def test_other_tabs_have_content():
 
 def test_controls_mention_every_key():
     text = " ".join(l for _, lines in lib.paragraphs("Controls") for l in lines)
-    for token in ("WASD", "arrow", "Enter", "R ", "G ", "F3", "F11", "Esc", "Ctrl+V", "Ctrl+C", "Ctrl+X", "Ctrl+A"):
+    for token in ("WASD", "arrow", "Enter", "J ", "G ", "F3", "F11", "Esc", "Ctrl+V", "Ctrl+C", "Ctrl+X", "Ctrl+A"):
         assert token in text, token
 
 

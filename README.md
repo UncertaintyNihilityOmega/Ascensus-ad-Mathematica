@@ -48,7 +48,9 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 | Input | Effect |
 |---|---|
 | WASD / arrow keys | Move (disabled while typing) |
-| R | Dash toward your last movement direction (invulnerable while dashing) |
+| J (rebindable in Settings, Controls) | Dash toward your last movement direction (invulnerable while dashing) |
+| Mouse mode: move the mouse | Walk toward the cursor; stand still inside the dead zone or over the UI. Right-click dashes toward the cursor |
+| 1x / 2x / 3x button (next to the timer) | Click to cycle the game speed; every run starts at 1x |
 | Enter, or click the box | Focus the equation box (time slows to 20 %) |
 | Enter (typing) | Cast the equation; a red error appears if it can't be read |
 | Ctrl+V / C / X / A, Shift+arrows | Paste, copy, cut, select all, extend selection in the box |

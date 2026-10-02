@@ -28,7 +28,7 @@ def build_stats(game) -> list[tuple[str, list[tuple[str, str]]]]:
     """[(group title, [(label, value), ...]), ...] for Run / Player / Enemies now / Equations.
 
     `game` needs: game_t, kills, bosses_killed, damage_dealt, equations_cast, upgrades, player, swarm,
-    spawner and equations (a GameScene, or any object with those attributes).
+    spawner, equations and (optionally) speed (a GameScene, or any object with those attributes).
     """
     up, pl = game.upgrades, game.player
     hp, dmg, speed, interval = difficulty(game.game_t)
@@ -42,7 +42,8 @@ def build_stats(game) -> list[tuple[str, list[tuple[str, str]]]]:
            ("XP spent", f"{up.spent:.0f}"),
            ("Dashes", str(pl.dash_count)),
            ("Damage dealt", f"{int(game.damage_dealt):,}"),
-           ("Equations cast", str(game.equations_cast))]
+           ("Equations cast", str(game.equations_cast)),
+           ("Game speed", f"{getattr(game, 'speed', 1)}x")]
     player = [("HP", f"{pl.hp:.0f} / {pl.max_hp:.0f}"),
               ("Regen", f"{config.PLAYER_REGEN_PER_MIN:g} / min"),
               ("Base DMG", f"{up.base_dmg:.0f}"),

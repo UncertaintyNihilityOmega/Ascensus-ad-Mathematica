@@ -141,7 +141,7 @@ _PARAGRAPHS: dict[str, list[tuple[str, list[str]]]] = {
         ("The player", [
             "You have 100 HP and regenerate 10 HP per minute. After a hit you are invulnerable",
             "and blinking for 0.6 s. Your HP is the green number under you.",
-            "Dash with R: 160 px toward the direction you face, invulnerable while dashing, no cooldown.",
+            "Dash with J (rebindable): 160 px toward the direction you face, invulnerable while dashing, no cooldown.",
         ]),
     ],
     "Upgrades & XP": [
@@ -190,7 +190,10 @@ _PARAGRAPHS: dict[str, list[tuple[str, list[str]]]] = {
     "Controls": [
         ("Moving", [
             "WASD or the arrow keys move you (disabled while typing).",
-            "R dashes toward the direction you last moved.",
+            "J dashes toward the direction you last moved (rebind it in Settings, Controls tab).",
+            "Mouse mode (Settings, Controls): you walk toward the cursor and stop inside its dead zone.",
+            "In Mouse mode a right-click dashes toward the cursor. You do not move while the cursor is",
+            "over the sidebar, the upgrade panel, the input box or the speed button.",
         ]),
         ("Typing", [
             "Enter focuses the equation box and slows time; Enter again casts the equation.",
@@ -200,6 +203,7 @@ _PARAGRAPHS: dict[str, list[tuple[str, list[str]]]] = {
         ("Interface", [
             "G toggles the grid. F3 toggles the FPS counter. F11 toggles full screen.",
             "Esc (not typing) pauses; Esc again resumes.",
+            "The 1x / 2x / 3x button next to the timer speeds the game up (each run starts at 1x).",
             "Sidebar: drag rows to reorder, use the switch to enable or disable, click Edit or Del,",
             "click a color swatch to recolor, and scroll the lists with the mouse wheel.",
         ]),

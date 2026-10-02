@@ -23,7 +23,8 @@ from . import config
 
 @dataclass(frozen=True)
 class Setting:
-    """One tunable: `kind` is 'int', 'float', 'bool' or 'choice' (value must be one of `choices`)."""
+    """One tunable: `kind` is 'int', 'float', 'bool', 'choice' (value is one of `choices`) or
+    'key' (a pygame key name such as 'j' or 'space', bound by clicking and pressing a key)."""
     key: str                      # attribute name in ascensus.config
     label: str
     tab: str
@@ -48,8 +49,16 @@ def _b(key, label, tab, note="", next_run=False) -> Setting:
     return Setting(key, label, tab, "bool", 0, 1, 1, note, next_run)
 
 
-DISPLAY, PLAYER, ENEMIES, BOSS, COMBAT, UPGRADES, EQUATIONS = (
-    "Display", "Player", "Enemies", "Boss", "Combat", "Upgrades & XP", "Equations & Variables")
+def _c(key, label, tab, choices, note="") -> Setting:
+    return Setting(key, label, tab, "choice", note=note, choices=tuple(choices))
+
+
+def _k(key, label, tab, note="") -> Setting:
+    return Setting(key, label, tab, "key", note=note)
+
+
+DISPLAY, CONTROLS, PLAYER, ENEMIES, BOSS, COMBAT, UPGRADES, EQUATIONS = (
+    "Display", "Controls", "Player", "Enemies", "Boss", "Combat", "Upgrades & XP", "Equations & Variables")
 
 SETTINGS: list[Setting] = [
     # Display
@@ -59,6 +68,10 @@ SETTINGS: list[Setting] = [
     _b("SHOW_FPS_DEFAULT", "Show FPS", DISPLAY, "F3 toggles in game"),
     _b("SHOW_GRID_DEFAULT", "Show grid", DISPLAY, "G toggles in game"),
     _i("GRID_STEP", "Curve quality (grid step)", DISPLAY, 2, 6, 1, "Smaller is smoother but slower"),
+    # Controls
+    _c("MOVE_MODE", "Movement", CONTROLS, ("WASD", "Mouse"), "WASD keys, or walk toward the mouse (right-click dashes)"),
+    _k("DASH_KEY", "Dash key", CONTROLS, "Click, then press a key (Esc cancels)"),
+    _f("MOUSE_DEAD_ZONE", "Mouse dead zone", CONTROLS, 0, 200, 1, "Pixels around you where the mouse means stand still"),
     # Player
     _i("PLAYER_HP", "Base max HP", PLAYER, 10, 1000, 10, "", True),
     _f("PLAYER_SPEED", "Speed", PLAYER, 50, 600, 10, "Pixels per second"),
@@ -159,6 +172,10 @@ def coerce(s: Setting, v):
         if v not in s.choices:
             raise ValueError("not a choice")
         return v
+    if s.kind == "key":
+        if not isinstance(v, str) or not v.strip() or len(v) > 32:
+            raise ValueError("not a key name")
+        return v.strip().lower()
     if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
         raise ValueError("not a finite number")
     v = min(max(v, s.min), s.max)
@@ -179,6 +196,11 @@ def nudge(key: str, direction: int):
     cur = get(key)
     if s.kind == "bool":
         return set_value(key, not cur)
+    if s.kind == "choice":
+        i = s.choices.index(cur) if cur in s.choices else 0
+        return set_value(key, s.choices[(i + direction) % len(s.choices)])
+    if s.kind == "key":
+        return cur                                    # bound by pressing a key, not nudged
     return set_value(key, cur + direction * s.step)
 
 
