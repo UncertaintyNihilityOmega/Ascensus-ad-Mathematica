@@ -1,0 +1,7 @@
+.venv/
+save/
+__pycache__/
+.pytest_cache/
+*.lnk
+prof.out
+*.prof
