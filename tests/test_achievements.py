@@ -4,9 +4,9 @@ from types import SimpleNamespace
 import pytest
 
 from ascensus import config
-from ascensus.achievements import ACHIEVEMENTS, BY_ID, EQUATION_PATTERNS, TOTAL, AchievementTracker
-from ascensus.mathparse import parse_equation
-from ascensus.profile import Profile
+from ascensus.core.mathparse import parse_equation
+from ascensus.game.achievements import ACHIEVEMENTS, BY_ID, EQUATION_PATTERNS, TOTAL, AchievementTracker
+from ascensus.game.profile import Profile
 
 
 def fake(source, expr=None, uses_t=False):

@@ -1,221 +1,32 @@
-"""Scenes: Menu, Game (with pause overlay) and GameOver."""
+"""The survival game scene: player, swarm, equations, HUD, sidebar, upgrades and the pause menu."""
 from __future__ import annotations
 
 import math
-from pathlib import Path
 
 import numpy as np
 import pygame
 
-from ascensus import config, controls, view
-from ascensus.curvefield import build_curve, render_curve
-from ascensus.enemies import Spawner, Swarm
-from ascensus.equations import EquationManager
-from ascensus.mathparse import EquationError, parse_equation
-from ascensus.achievements import AchievementTracker
-from ascensus.player import Player
-from ascensus.profile import Profile, get_profile
-from ascensus.savegame import SlotStore
+from ascensus import config, view
+from ascensus.core.equations import EquationManager
+from ascensus.core.mathparse import EquationError
+from ascensus.game import controls
+from ascensus.game.achievements import AchievementTracker
+from ascensus.game.enemies import Spawner, Swarm
+from ascensus.game.player import Player
+from ascensus.game.profile import Profile, get_profile
+from ascensus.game.savegame import SlotStore
+from ascensus.game.upgrades import Upgrades
+from ascensus.scenes import game_over as game_over_scene
+from ascensus.scenes import menu as menu_scene
+from ascensus.scenes.base import Scene, button_stack, centered_button, fmt_time, open_page
 from ascensus.ui import icons
 from ascensus.ui.inputbox import InputBox
+from ascensus.ui.layout import game_layout
 from ascensus.ui.sidebar import Sidebar
 from ascensus.ui.speed_button import SpeedButton, next_speed
 from ascensus.ui.undo_toast import UndoToast
 from ascensus.ui.upgrade_panel import UpgradePanel
-from ascensus.layout import game_layout
 from ascensus.ui.widgets import Button, draw_text, get_font
-from ascensus.upgrades import Upgrades
-
-QUIT = "quit"
-
-
-def fmt_time(seconds: float) -> str:
-    """mm:ss."""
-    s = int(seconds)
-    return f"{s // 60:02d}:{s % 60:02d}"
-
-
-def _button(cx: int, cy: int, label: str) -> Button:
-    w, h = config.BUTTON_SIZE
-    return Button(pygame.Rect(cx - w // 2, cy - h // 2, w, h), label)
-
-
-def button_stack(n: int, head: int, foot: int = 0) -> tuple[int, list[pygame.Rect]]:
-    """Rects of `n` centred menu buttons under a `head` px title block, with `foot` px left below them.
-
-    The whole block is centred vertically. In a short window the button height and gap shrink (down to
-    24 px buttons) so everything still fits. Returns (top of the block, button rects).
-    """
-    m = 12
-    full_w, full_h = config.BUTTON_SIZE
-    pitch = min(full_h + 12, max((view.H - 2 * m - head - foot) // max(n, 1), 24))
-    gap = 12 if pitch == full_h + 12 else max(int(pitch * 0.18), 4)
-    bh = pitch - gap
-    total = head + n * pitch - gap + foot
-    top = max((view.H - total) // 2, m)
-    w = min(full_w, view.W - 20)
-    return top, [pygame.Rect(view.W // 2 - w // 2, top + head + i * pitch, w, bh) for i in range(n)]
-
-
-class Scene:
-    """Base scene. Set `next_scene` (a Scene or QUIT) to ask the main loop to switch."""
-
-    def __init__(self) -> None:
-        self.next_scene: Scene | str | None = None
-        self.fps = 0.0
-
-    def handle_event(self, e: pygame.event.Event) -> None:
-        pass
-
-    def on_resize(self) -> None:
-        """The window size changed (view.W / view.H are already updated): re-lay-out."""
-
-    def update(self, dt: float) -> None:
-        pass
-
-    def draw(self, screen: pygame.Surface) -> None:
-        pass
-
-
-def open_page(name: str, back, game=None) -> "Scene | None":
-    """Build the Settings / Library / Achievements / Saves page (imported lazily); None if it does not exist.
-
-    `back` is a zero-argument callable returning the Scene the page's Back button leads to. `game` is only
-    used by the Saves page: the paused GameScene it can save (None from the main menu).
-    """
-    try:
-        if name == "saves":
-            from ascensus.saves_scene import SavesScene
-            return SavesScene(game, back)
-        if name == "settings":
-            from ascensus.settings_scene import SettingsScene
-            return SettingsScene(back)
-        if name == "library":
-            from ascensus.library import LibraryScene
-            return LibraryScene(back)
-        if name == "achievements":
-            from ascensus.achievements_scene import AchievementsScene
-            return AchievementsScene(back)
-    except ImportError:
-        return None
-    return None
-
-
-class MenuScene(Scene):
-    """Title, [Continue (mm:ss)] / Play / Saves / Settings / Library / Achievements / Quit and the best run."""
-
-    LABELS = ("Play", "Saves", "Settings", "Library", "Achievements", "Quit")
-
-    def __init__(self, store: SlotStore | None = None) -> None:
-        super().__init__()
-        self.store = store if store is not None else SlotStore()
-        info = self.store.autosave_info()
-        self.continue_time: float | None = info.game_t if info is not None else None
-        self.play = self.quit = _button(0, 0, "")
-        self.buttons: dict[str, Button] = {}
-        self.top = 0
-        self.on_resize()
-        self.t = 0.0
-        self.rebuild_timer = config.MENU_CURVE_REBUILD       # build on the first update
-        self.curve_func = parse_equation(config.MENU_CURVE).func
-        self.curve_surf: pygame.Surface | None = None
-
-    def _names(self) -> list[str]:
-        return (["Continue"] if self.continue_time is not None else []) + list(self.LABELS)
-
-    def on_resize(self) -> None:
-        names = self._names()
-        self.top, rects = button_stack(len(names), 130, 44)
-        self.buttons = {}
-        for name, rect in zip(names, rects):
-            label = f"Continue ({fmt_time(self.continue_time)})" if name == "Continue" else name
-            self.buttons[name] = Button(rect, label)
-        self.play, self.quit = self.buttons["Play"], self.buttons["Quit"]
-        self.rebuild_timer = config.MENU_CURVE_REBUILD       # redraw the curve at the new size
-
-    def update(self, dt: float) -> None:
-        """Animate the background curve (rebuilt at ~10 Hz on the coarse grid)."""
-        self.t += dt
-        self.rebuild_timer += dt
-        if self.rebuild_timer >= config.MENU_CURVE_REBUILD:
-            self.rebuild_timer = 0.0
-            curve = build_curve(self.curve_func, self.t, config.GRID_STEP)
-            self.curve_surf = render_curve(curve.points, config.ACCENT_COLOR)
-            self.curve_surf.set_alpha(config.MENU_CURVE_ALPHA)
-
-    def continue_game(self) -> None:
-        """Load the autosave into a GameScene; an unreadable autosave is deleted and the button disappears."""
-        from ascensus.savegame import restore
-        data = self.store.load_autosave()
-        try:
-            if data is None:
-                raise ValueError("no autosave")
-            self.next_scene = restore(data)
-        except ValueError:
-            self.store.delete_autosave()
-            self.continue_time = None
-            self.on_resize()
-
-    def handle_event(self, e: pygame.event.Event) -> None:
-        if self.play.handle_event(e) or (e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN):
-            self.next_scene = GameScene()
-        elif "Continue" in self.buttons and self.buttons["Continue"].handle_event(e):
-            self.continue_game()
-        elif self.quit.handle_event(e):
-            self.next_scene = QUIT
-        else:
-            for name in ("Saves", "Settings", "Library", "Achievements"):
-                if self.buttons[name].handle_event(e):
-                    self.next_scene = open_page(name.lower(), lambda: MenuScene(self.store))
-                    break
-
-    def draw(self, screen: pygame.Surface) -> None:
-        screen.fill(config.BG_COLOR)
-        if self.curve_surf is not None:
-            screen.blit(self.curve_surf, (0, 0))
-        cx, wmax = view.W // 2, view.W - 40
-        draw_text(screen, config.TITLE, config.TITLE_FONT, config.ACCENT_COLOR, (cx, self.top + 36), "center",
-                  max_w=wmax, min_size=28)
-        draw_text(screen, "Survive with equations", config.SUBTITLE_FONT,
-                  config.TEXT_COLOR, (cx, self.top + 100), "center", max_w=wmax, min_size=18)
-        for b in self.buttons.values():
-            b.draw(screen)
-        last = self.quit.rect.bottom
-        draw_text(screen, get_profile().best_text(), config.BODY_FONT, config.DIM_TEXT_COLOR,
-                  (cx, last + 24), "center", max_w=wmax, min_size=14)
-
-
-class GameOverScene(Scene):
-    """Survival time, kills, Retry / Main Menu."""
-
-    def __init__(self, survived: float, kills: int) -> None:
-        super().__init__()
-        self.survived = survived
-        self.kills = kills
-        self.retry = self.menu = _button(0, 0, "")
-        self.on_resize()
-
-    def on_resize(self) -> None:
-        cx, cy = view.W // 2, view.H // 2
-        self.retry = _button(cx, cy + 40, "Retry")
-        self.menu = _button(cx, cy + 110, "Main Menu")
-
-    def handle_event(self, e: pygame.event.Event) -> None:
-        if self.retry.handle_event(e):
-            self.next_scene = GameScene()
-        elif self.menu.handle_event(e):
-            self.next_scene = MenuScene()
-
-    def draw(self, screen: pygame.Surface) -> None:
-        screen.fill(config.BG_COLOR)
-        cx, cy = view.W // 2, view.H // 2
-        draw_text(screen, "You died", config.TITLE_FONT, config.DANGER_COLOR, (cx, cy - 190), "center")
-        draw_text(screen, f"You survived {fmt_time(self.survived)}", config.SUBTITLE_FONT + 10,
-                  config.TEXT_COLOR, (cx, cy - 90), "center")
-        draw_text(screen, f"Kills: {self.kills}", config.SUBTITLE_FONT,
-                  config.TEXT_COLOR, (cx, cy - 40), "center")
-        self.retry.draw(screen)
-        self.menu.draw(screen)
 
 
 def _mix(color: tuple[int, int, int], alpha: int) -> tuple[int, int, int]:
@@ -303,8 +114,8 @@ class GameScene(Scene):
         self.direction_override: tuple[float, float] | None = None   # tests/smoke only
         self.grid_lines, self.grid_labels = make_grid()
         self.dots = make_dot_surface()
-        self.resume_btn = self.menu_btn = self.stats_btn = self.settings_btn = self.library_btn = _button(0, 0, "")
-        self.saves_btn = _button(0, 0, "")
+        self.resume_btn = self.menu_btn = self.stats_btn = self.settings_btn = self.library_btn = centered_button(0, 0, "")
+        self.saves_btn = centered_button(0, 0, "")
         self.pause_top = 0
         self._layout_pause()
 
@@ -388,7 +199,7 @@ class GameScene(Scene):
                     e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
                 self.paused = False
             elif self.stats_btn.handle_event(e):
-                from ascensus.pages import StatsScene
+                from ascensus.scenes.stats_page import StatsScene
                 self.next_scene = StatsScene(self, self._return_here)
             elif self.saves_btn.handle_event(e):
                 self.next_scene = open_page("saves", self._return_here, game=self)
@@ -399,7 +210,7 @@ class GameScene(Scene):
             elif self.menu_btn.handle_event(e):
                 self.finish_run()
                 self.autosave()
-                self.next_scene = MenuScene(self.slots)
+                self.next_scene = menu_scene.MenuScene(self.slots)
             return
         if self.sidebar.picker_idx is not None:       # the colour popup is modal
             self.sidebar.handle_event(e)
@@ -584,7 +395,7 @@ class GameScene(Scene):
         if not self.player.alive:
             self.finish_run()
             self.slots.delete_autosave()
-            self.next_scene = GameOverScene(self.game_t, self.kills)
+            self.next_scene = game_over_scene.GameOverScene(self.game_t, self.kills)
 
     def draw(self, screen: pygame.Surface) -> None:
         t = config.DOT_TILE

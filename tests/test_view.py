@@ -2,8 +2,8 @@
 import numpy as np
 
 from ascensus import config, view
-from ascensus.curvefield import build_curve
-from ascensus.mathparse import parse_equation
+from ascensus.core.curvefield import build_curve
+from ascensus.core.mathparse import parse_equation
 
 
 def test_set_size_and_mapping_roundtrip():

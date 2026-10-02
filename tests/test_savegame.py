@@ -8,9 +8,9 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.profile import Profile  # noqa: E402
-from ascensus.savegame import render_thumbnail, restore, snapshot  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
+from ascensus.game.profile import Profile  # noqa: E402
+from ascensus.game.savegame import render_thumbnail, restore, snapshot  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 

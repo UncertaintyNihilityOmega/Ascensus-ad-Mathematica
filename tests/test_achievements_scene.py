@@ -6,9 +6,9 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.achievements import ACHIEVEMENTS, TOTAL  # noqa: E402
-from ascensus.achievements_scene import AchievementsScene, card_model, counter_text, grid_layout  # noqa: E402
-from ascensus.profile import Profile  # noqa: E402
+from ascensus.game.achievements import ACHIEVEMENTS, TOTAL  # noqa: E402
+from ascensus.game.profile import Profile  # noqa: E402
+from ascensus.scenes.achievements_page import AchievementsScene, card_model, counter_text, grid_layout  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 

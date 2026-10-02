@@ -22,14 +22,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pygame  # noqa: E402
 
 from ascensus import view  # noqa: E402
-from ascensus.achievements import ACHIEVEMENTS  # noqa: E402
-from ascensus.achievements_scene import AchievementsScene  # noqa: E402
-from ascensus.library import LibraryScene  # noqa: E402
-from ascensus.profile import get_profile  # noqa: E402
-from ascensus.saves_scene import SavesScene  # noqa: E402
-from ascensus.savegame import SlotStore  # noqa: E402
-from ascensus.scenes import GameScene, MenuScene  # noqa: E402
-from ascensus.settings_scene import SettingsScene  # noqa: E402
+from ascensus.game.achievements import ACHIEVEMENTS  # noqa: E402
+from ascensus.game.profile import get_profile  # noqa: E402
+from ascensus.game.savegame import SlotStore  # noqa: E402
+from ascensus.scenes.achievements_page import AchievementsScene  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.library_page import LibraryScene  # noqa: E402
+from ascensus.scenes.menu import MenuScene  # noqa: E402
+from ascensus.scenes.saves_page import SavesScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene  # noqa: E402
 
 SHOWCASE = [
     "Sakuna: 0 = sin(x*a)*sin(y*a)",
@@ -81,6 +82,7 @@ def main() -> None:
     profile.record_run(1925.0, 2246)
 
     game = showcase_game()
+    game.show_fps = False                                 # no real frame clock when rendering headless
     game.input.set_text("Cosmic: 200 = (x^5+y^5)^2")
     game.input.anchor, game.input.cursor = 8, 13            # show a selection in the equation box
     shot(game, "game", frames=1)

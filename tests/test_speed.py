@@ -6,9 +6,9 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, settings, view  # noqa: E402
-from ascensus.profile import Profile  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
-from ascensus.stats import build_stats  # noqa: E402
+from ascensus.game.profile import Profile  # noqa: E402
+from ascensus.game.stats import build_stats  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 from ascensus.ui.speed_button import SpeedButton, next_speed  # noqa: E402
 

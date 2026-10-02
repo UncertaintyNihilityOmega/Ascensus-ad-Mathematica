@@ -1,4 +1,4 @@
-"""Draws the 256 px 'neon graph' icon and writes assets/icon.png and assets/icon.ico (pygame + numpy only)."""
+"""Draws the 256 px 'neon graph' icon and writes ascensus/assets/icon.png and icon.ico (pygame + numpy only)."""
 from __future__ import annotations
 
 import os
@@ -75,7 +75,7 @@ def write_ico(png_bytes: bytes, path: Path) -> None:
 
 def main() -> None:
     root = Path(__file__).resolve().parent.parent
-    out = root / "assets"
+    out = root / "ascensus" / "assets"
     out.mkdir(exist_ok=True)
     pygame.init()
     pygame.display.set_mode((1, 1))

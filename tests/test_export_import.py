@@ -7,10 +7,10 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import view  # noqa: E402
-from ascensus.profile import Profile, set_profile  # noqa: E402
-from ascensus.saves_scene import SavesScene  # noqa: E402
-from ascensus.savegame import EXPORT_FORMAT, SlotStore, read_export, restore  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
+from ascensus.game.profile import Profile, set_profile  # noqa: E402
+from ascensus.game.savegame import EXPORT_FORMAT, SlotStore, read_export, restore  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.saves_page import SavesScene  # noqa: E402
 from ascensus.ui import filedialog, widgets  # noqa: E402
 
 

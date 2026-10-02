@@ -3,9 +3,9 @@ import numpy as np
 import pytest
 
 from ascensus import config, view
-from ascensus.enemies import Swarm
-from ascensus.equations import EquationManager, pulse_damage
-from ascensus.mathparse import EquationError
+from ascensus.core.equations import EquationManager, pulse_damage
+from ascensus.core.mathparse import EquationError
+from ascensus.game.enemies import Swarm
 
 ORIGIN = np.zeros(2)
 

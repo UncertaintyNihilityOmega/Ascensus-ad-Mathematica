@@ -6,7 +6,7 @@ from typing import Callable
 import pygame
 
 from ascensus import config, display, settings, view
-from ascensus.scenes import Scene
+from ascensus.scenes.base import Scene
 from ascensus.settings import Setting
 from ascensus.ui.keyfield import KeyField
 from ascensus.ui.widgets import Button, IconButton, NumberField, ScrollArea, Tabs, draw_text, fmt_number, get_font

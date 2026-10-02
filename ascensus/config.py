@@ -13,7 +13,7 @@ MAX_DT = 0.05
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE_PATH = Path(os.environ.get("ASCENSUS_PROFILE", ROOT / "save" / "profile.json"))
 SETTINGS_PATH = Path(os.environ.get("ASCENSUS_SETTINGS", ROOT / "save" / "settings.json"))
-ICON_PATH = ROOT / "assets" / "icon.png"
+ICON_PATH = Path(__file__).resolve().parent / "assets" / "icon.png"
 APP_USER_MODEL_ID = "Ascensus.ad.Mathematica"
 
 # Controls

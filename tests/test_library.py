@@ -5,9 +5,9 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame  # noqa: E402
 import pytest  # noqa: E402
 
-from ascensus import config, library_data, view  # noqa: E402
-from ascensus.library import (LibraryScene, layout_function_cards, layout_paragraphs,  # noqa: E402
-                              line_height, wrap_text)
+from ascensus import config, view  # noqa: E402
+from ascensus.data import library_data  # noqa: E402
+from ascensus.scenes.library_page import LibraryScene, layout_function_cards, layout_paragraphs, line_height, wrap_text  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 

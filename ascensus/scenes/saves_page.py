@@ -13,11 +13,11 @@ from typing import Callable
 import pygame
 
 from ascensus import config, view
-from ascensus.achievements import AchievementTracker
-from ascensus.profile import get_profile
-from ascensus.savegame import SlotInfo, SlotStore, read_export, restore
-from ascensus.scenes import Scene
-from ascensus.stats import mmss
+from ascensus.game.achievements import AchievementTracker
+from ascensus.game.profile import get_profile
+from ascensus.game.savegame import SlotInfo, SlotStore, read_export, restore
+from ascensus.game.stats import mmss
+from ascensus.scenes.base import Scene
 from ascensus.ui import filedialog
 from ascensus.ui.widgets import Button, draw_text
 

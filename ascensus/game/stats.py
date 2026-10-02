@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from ascensus import config
-from ascensus.enemies import difficulty
-from ascensus.upgrades import STATS
+from ascensus.game.enemies import difficulty
+from ascensus.game.upgrades import STATS
 
 
 def mmss(seconds: float) -> str:

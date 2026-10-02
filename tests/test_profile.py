@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ascensus.profile import Profile
+from ascensus.game.profile import Profile
 
 
 def test_defaults_and_missing_file(tmp_path):

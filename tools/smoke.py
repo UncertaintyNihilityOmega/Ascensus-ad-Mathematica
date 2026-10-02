@@ -17,12 +17,15 @@ import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.achievements import TOTAL  # noqa: E402
-from ascensus.savegame import restore, snapshot  # noqa: E402
-from ascensus.scenes import QUIT, GameOverScene, GameScene, MenuScene  # noqa: E402
+from ascensus.game.achievements import TOTAL  # noqa: E402
+from ascensus.game.savegame import restore, snapshot  # noqa: E402
+from ascensus.scenes.base import QUIT  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.game_over import GameOverScene  # noqa: E402
+from ascensus.scenes.menu import MenuScene  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import smoke_p18, smoke_p19, smoke_p20  # noqa: E402,E401
+import smoke_controls, smoke_icons_colors, smoke_saves  # noqa: E402,E401
 
 DT = 1 / 60
 # (avg ms, p95 ms) gates. 1920 is looser than the 10/16 target of DESIGN_V2 until the P14 perf pass.
@@ -442,10 +445,10 @@ def scale_phase(screen, w: int, h: int) -> None:
 def menu_pause_pages_phase(screen, w: int, h: int) -> None:
     """Open every page from the menu and from pause, at this size and after a resize; Settings take effect."""
     from ascensus import display, settings
-    from ascensus.achievements_scene import AchievementsScene
-    from ascensus.library import LibraryScene
-    from ascensus.pages import StatsScene
-    from ascensus.settings_scene import SettingsScene
+    from ascensus.scenes.achievements_page import AchievementsScene
+    from ascensus.scenes.library_page import LibraryScene
+    from ascensus.scenes.stats_page import StatsScene
+    from ascensus.scenes.settings_page import SettingsScene
     settings.reset_all()
     config.SETTINGS_PATH.unlink(missing_ok=True)
 
@@ -599,7 +602,7 @@ def run(w: int, h: int) -> None:
     boss_phase(screen)
     upgrades_phase(screen)
     menu_pause_pages_phase(screen, w, h)
-    for mod in (smoke_p18, smoke_p19, smoke_p20):
+    for mod in (smoke_icons_colors, smoke_controls, smoke_saves):
         mod.phase(pygame.display.set_mode((w, h)))
         view.set_size(w, h)
         print(f"{mod.__name__}: OK at {w}x{h}")
@@ -670,8 +673,8 @@ def run(w: int, h: int) -> None:
 def icons_achievements_phase() -> None:
     """Icons build at several sizes; an AchievementTracker on a temp profile unlocks and persists."""
     from types import SimpleNamespace
-    from ascensus.achievements import ACHIEVEMENTS, AchievementTracker
-    from ascensus.profile import Profile
+    from ascensus.game.achievements import ACHIEVEMENTS, AchievementTracker
+    from ascensus.game.profile import Profile
     from ascensus.ui import icons
     for fn in (icons.skull, icons.medal, icons.padlock):
         for h in (16, 40, 96):
@@ -690,10 +693,10 @@ def icons_achievements_phase() -> None:
 
 def pages_phase() -> None:
     """Library (every tab) and Achievements at 1280x720, 1920x1080 and after a resize; Esc goes back."""
-    from ascensus import library_data
-    from ascensus.achievements_scene import AchievementsScene
-    from ascensus.library import LibraryScene
-    from ascensus.profile import Profile
+    from ascensus.data import library_data
+    from ascensus.scenes.achievements_page import AchievementsScene
+    from ascensus.scenes.library_page import LibraryScene
+    from ascensus.game.profile import Profile
     prof = Profile.in_memory()
     for ach_id in ("hello_sine", "tangent", "investor"):
         prof.unlock(ach_id)
@@ -729,8 +732,8 @@ def pages_phase() -> None:
 
 def achievements_game_phase(screen) -> None:
     """A scripted run through real GameScene calls unlocks 5+ achievements, shows the toast and saves."""
-    from ascensus.achievements import AchievementTracker
-    from ascensus.profile import Profile
+    from ascensus.game.achievements import AchievementTracker
+    from ascensus.game.profile import Profile
     path = Path(tempfile.gettempdir()) / "ascensus_smoke_profile_run.json"
     path.unlink(missing_ok=True)
     game = GameScene(seed=4, profile=Profile(path))
@@ -770,7 +773,8 @@ def achievements_game_phase(screen) -> None:
 
 def widgets_phase() -> None:
     """Draw Tabs/Slider/NumberField/ScrollArea/IconButton and every Library mini graph; Settings round trip."""
-    from ascensus import library_data, settings
+    from ascensus.data import library_data
+    from ascensus import settings
     from ascensus.ui.minigraph import render_minigraph
     from ascensus.ui.widgets import IconButton, NumberField, ScrollArea, Slider, Tabs
     screen = pygame.display.set_mode((900, 600))

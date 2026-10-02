@@ -8,8 +8,8 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.enemies import Swarm  # noqa: E402
-from ascensus.equations import EquationManager  # noqa: E402
+from ascensus.core.equations import EquationManager  # noqa: E402
+from ascensus.game.enemies import Swarm  # noqa: E402
 from ascensus.ui import inputbox  # noqa: E402
 from ascensus.ui.inputbox import InputBox  # noqa: E402
 from ascensus.ui.sidebar import Sidebar  # noqa: E402

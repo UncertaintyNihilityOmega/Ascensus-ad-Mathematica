@@ -3,10 +3,10 @@ import numpy as np
 import pytest
 
 from ascensus import config
-from ascensus.enemies import Swarm
-from ascensus.equations import EquationManager, pulse_damage
-from ascensus.player import Player
-from ascensus.upgrades import Upgrades
+from ascensus.core.equations import EquationManager, pulse_damage
+from ascensus.game.enemies import Swarm
+from ascensus.game.player import Player
+from ascensus.game.upgrades import Upgrades
 
 
 def test_cost_growth_per_stat():

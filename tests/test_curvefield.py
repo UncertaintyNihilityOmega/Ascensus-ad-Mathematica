@@ -6,8 +6,8 @@ import pytest
 
 from ascensus import config, view
 from ascensus.config import UNIT_PX
-from ascensus.curvefield import build_curve, render_curve
-from ascensus.mathparse import parse_equation
+from ascensus.core.curvefield import build_curve, render_curve
+from ascensus.core.mathparse import parse_equation
 
 W, H = view.W, view.H
 
@@ -148,7 +148,7 @@ def _alpha(points, color, size):
 
 
 def test_kernel_shape_full_core_and_zero_at_end_radius():
-    from ascensus.curvefield import stamp_kernel
+    from ascensus.core.curvefield import stamp_kernel
     k = stamp_kernel(1.5, 4.0, 255, 2.0)
     assert len({(dx, dy) for dx, dy, _ in k}) == len(k) and max(max(abs(dx), abs(dy)) for dx, dy, _ in k) == 3
     vals = {(dx, dy): v for dx, dy, v in k}
@@ -159,7 +159,7 @@ def test_kernel_shape_full_core_and_zero_at_end_radius():
 
 
 def test_stamp_equals_np_maximum_at():
-    from ascensus.curvefield import _PAD, _stamp, stamp_kernel
+    from ascensus.core.curvefield import _PAD, _stamp, stamp_kernel
     rng = np.random.default_rng(0)
     pts = rng.uniform(0, 60, (200, 2)).astype(np.float32)
     k = stamp_kernel(1.5, 4.0, 255, 2.0)
@@ -195,7 +195,7 @@ def test_horizontal_and_steep_lines_have_no_beading():
 
 
 def test_relative_luminance_values():
-    from ascensus.curvefield import relative_luminance
+    from ascensus.core.curvefield import relative_luminance
     assert relative_luminance((0, 0, 0)) == 0 and abs(relative_luminance((255, 255, 255)) - 1) < 1e-6
     assert relative_luminance((70, 74, 88)) < config.DARK_LUMINANCE        # Graphite gets a halo
     assert relative_luminance((128, 134, 150)) > config.DARK_LUMINANCE     # Gray does not

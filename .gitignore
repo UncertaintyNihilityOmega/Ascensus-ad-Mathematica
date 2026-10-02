@@ -5,3 +5,6 @@ __pycache__/
 *.lnk
 prof.out
 *.prof
+*.egg-info/
+build/
+dist/

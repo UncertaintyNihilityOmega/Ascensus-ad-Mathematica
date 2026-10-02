@@ -6,7 +6,7 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.equations import EquationManager  # noqa: E402
+from ascensus.core.equations import EquationManager  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 from ascensus.ui.undo_toast import UndoToast  # noqa: E402
 
@@ -94,7 +94,7 @@ def test_undone_curve_is_rebuilt():
     e = m.undo_delete()
     assert e.curve is None                                   # rebuilt by update()
     import numpy as np
-    from ascensus.enemies import Swarm
+    from ascensus.game.enemies import Swarm
     m.update(0.016, 0.0, Swarm(np.random.default_rng(0)), np.zeros(2))
     assert e.curve is not None and len(e.curve.points) > 0
 

@@ -2,10 +2,10 @@
 import numpy as np
 import pytest
 
-from ascensus import library_data as lib
-from ascensus import mathparse
-from ascensus.curvefield import build_curve
-from ascensus.mathparse import parse_equation
+from ascensus.core import mathparse
+from ascensus.core.curvefield import build_curve
+from ascensus.core.mathparse import parse_equation
+from ascensus.data import library_data as lib
 
 
 def test_every_function_and_alias_is_documented():

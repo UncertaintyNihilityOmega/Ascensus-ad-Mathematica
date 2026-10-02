@@ -23,11 +23,11 @@ def test_every_icon_name_has_a_png_except_play():
     missing = [n for n in icons.ICON_NAMES if n != "play" and not icons.has_png(n)]
     assert not missing, missing
     assert not icons.has_png("play")                     # drawn in code
-    assert (ROOT / "assets" / "icons" / "License.txt").read_text(encoding="utf-8").count("CC0") >= 2
+    assert (ROOT / "ascensus" / "assets" / "icons" / "License.txt").read_text(encoding="utf-8").count("CC0") >= 2
 
 
 def test_no_stray_files_in_icons_dir():
-    names = {p.name for p in (ROOT / "assets" / "icons").iterdir()}
+    names = {p.name for p in (ROOT / "ascensus" / "assets" / "icons").iterdir()}
     assert names == {f"{n}.png" for n in icons.ICON_NAMES if n != "play"} | {"License.txt"}
 
 

@@ -8,9 +8,12 @@ os.environ.setdefault("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0")   # stay visible 
 import pygame  # noqa: E402
 
 from ascensus import config, display, settings, view
-from ascensus.display import set_display          # noqa: F401  (kept importable from here)
-from ascensus.profile import get_profile
-from ascensus.scenes import QUIT, GameOverScene, GameScene, MenuScene, Scene
+from ascensus.display import set_display  # noqa: F401  (kept importable from here)
+from ascensus.game.profile import get_profile
+from ascensus.scenes.base import QUIT, Scene
+from ascensus.scenes.game import GameScene
+from ascensus.scenes.game_over import GameOverScene
+from ascensus.scenes.menu import MenuScene
 
 
 def sync_view(scene: Scene) -> pygame.Surface:

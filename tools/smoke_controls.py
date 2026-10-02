@@ -1,4 +1,4 @@
-"""P19 smoke phase: mouse mode, dashes, speed button, Controls tab, smooth curves. `python tools/smoke_p19.py` runs alone."""
+"""P19 smoke phase: mouse mode, dashes, speed button, Controls tab, smooth curves. `python tools/smoke_controls.py` runs alone."""
 import os
 import sys
 import tempfile
@@ -8,19 +8,20 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _tmp = Path(tempfile.gettempdir())
-os.environ.setdefault("ASCENSUS_PROFILE", str(_tmp / f"ascensus_smoke_p19_profile_{os.getpid()}.json"))
-os.environ.setdefault("ASCENSUS_SETTINGS", str(_tmp / f"ascensus_smoke_p19_settings_{os.getpid()}.json"))
+os.environ.setdefault("ASCENSUS_PROFILE", str(_tmp / f"ascensus_smoke_controls_profile_{os.getpid()}.json"))
+os.environ.setdefault("ASCENSUS_SETTINGS", str(_tmp / f"ascensus_smoke_controls_settings_{os.getpid()}.json"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 
-from ascensus import config, controls, settings, view  # noqa: E402
-from ascensus.curvefield import build_curve, render_curve  # noqa: E402
-from ascensus.mathparse import parse_equation  # noqa: E402
-from ascensus.profile import Profile  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
-from ascensus.settings_scene import SettingsScene  # noqa: E402
+from ascensus import config, settings, view  # noqa: E402
+from ascensus.core.curvefield import build_curve, render_curve  # noqa: E402
+from ascensus.core.mathparse import parse_equation  # noqa: E402
+from ascensus.game import controls  # noqa: E402
+from ascensus.game.profile import Profile  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene  # noqa: E402
 
 DT = 1 / 60
 
@@ -186,7 +187,7 @@ def main() -> None:
         view.set_size(w, h)
         print(f"--- {w}x{h}")
         phase(screen)
-    print("smoke_p19 OK")
+    print("smoke_controls OK")
 
 
 if __name__ == "__main__":

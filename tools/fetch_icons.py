@@ -1,11 +1,11 @@
-"""Download Kenney's CC0 icon packs and copy the few white PNGs the game uses into assets/icons/.
+"""Download Kenney's CC0 icon packs and copy the few white PNGs the game uses into ascensus/assets/icons/.
 
 Packs (both CC0 / public domain, https://kenney.nl):
   Game Icons        https://kenney.nl/assets/game-icons
   Board Game Icons  https://kenney.nl/assets/board-game-icons
 
 The zips go to a temporary directory that is deleted afterwards; only the chosen PNGs and a
-License.txt land in assets/icons/. Icons the packs lack (play) are drawn in code by ui/icons.py.
+License.txt land in ascensus/assets/icons/. Icons the packs lack (play) are drawn in code by ui/icons.py.
 Run from the project root:  .venv\\Scripts\\python tools\\fetch_icons.py
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "assets" / "icons"
+OUT = ROOT / "ascensus" / "assets" / "icons"
 
 PACKS = {
     "game": ("https://kenney.nl/assets/game-icons",

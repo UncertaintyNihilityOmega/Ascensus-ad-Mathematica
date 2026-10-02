@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from ascensus import config
-from ascensus.mathparse import EquationError, parse_equation
+from ascensus.core.mathparse import EquationError, parse_equation
 
 pytestmark = pytest.mark.filterwarnings("ignore::RuntimeWarning")
 

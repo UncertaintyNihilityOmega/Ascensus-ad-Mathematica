@@ -17,7 +17,7 @@ import numpy as np
 import pygame
 
 from ascensus import config, view
-from ascensus.curvefield import render_curve
+from ascensus.core.curvefield import render_curve
 
 AUTO = "autosave"                          # the slot key of the autosave (the others are 1..SAVE_SLOTS)
 _REQUIRED = ("game_t", "kills", "player", "swarm", "spawner", "upgrades", "equations", "variables")
@@ -97,7 +97,7 @@ def restore(data: dict, profile=None):
 
     `profile` as for GameScene.
     """
-    from ascensus.scenes import GameScene                         # lazy: scenes may import this module
+    from ascensus.scenes.game import GameScene                         # lazy: scenes may import this module
 
     if not isinstance(data, dict) or data.get("version") != config.SAVE_VERSION:
         raise ValueError("unsupported save version")

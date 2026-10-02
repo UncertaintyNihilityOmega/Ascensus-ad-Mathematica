@@ -1,132 +1,127 @@
 # Ascensus ad Mathematica
 
-A free survival game where the magic is math equations. The equations you type are your weapons. Enemies chase you from
-off-screen; every curve you cast pulses and damages everything it touches. Kills give XP, XP buys
-upgrades, and a boss arrives every 5 minutes. The game starts full screen; you stand at the origin
-and the visible plane is ±(width/2)/50 by ±(height/2)/50 units.
+A fun free survival game where the magic is math equations.
 
-## Run
+[![tests](https://github.com/UncertaintyNihilityOmega/Ascensus-ad-Mathematica/actions/workflows/tests.yml/badge.svg)](https://github.com/UncertaintyNihilityOmega/Ascensus-ad-Mathematica/actions/workflows/tests.yml)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](LICENSE)
+![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)
 
-**First time:** double-click `tools\setup.bat` (needs internet once). It creates the Python
-environment, installs the packages and makes the "Ascensus ad Mathematica" shortcut in the
-project folder and on the Desktop.
+You stand at the origin of a coordinate plane while enemies close in from every side. Your only weapons
+are the equations you type: every curve you cast is drawn across the screen and pulses damage into
+everything it touches. Kills give XP, XP buys upgrades, and a boss arrives every five minutes.
 
-**Play:** double-click the "Ascensus ad Mathematica" shortcut.
+![The game: six equations, a variable slider and the upgrade panel](docs/images/game.png)
 
-Manual setup: Python 3.14 on Windows (PowerShell, from the project folder):
+## Features
 
-```powershell
-py -3.14 -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt -r requirements-dev.txt
-.venv\Scripts\python -m ascensus
+- **Type any curve.** `y = sin(x)`, `x^2 + y^2 = 9`, `tan(sqrt(x^2+y^2)) = y/x`, with 30+ functions, implicit
+  multiplication and named equations (`eq4: (x^2+y^2)^3 = 4x^2 y^2`).
+- **Variables with sliders.** Any letter becomes a variable: drag it, type it, or press play to animate the curve.
+- **Real roguelite loop.** Six active equations, XP upgrades (Max HP, Base DMG, Cooldown, Auto), bosses,
+  dash, 1x / 2x / 3x game speed, WASD or mouse movement.
+- **40 achievements**, including equation shapes to discover (*Sakuna*, *Ocean*, *Love is Endless*, ...).
+- **Six save slots** with thumbnails, an autosave with **Continue**, and portable `.ascensus` files to
+  export and import runs.
+- **Library** of every function with a live mini graph, and a **Settings** page for every game number.
+
+| Menu | Saves | Achievements |
+|---|---|---|
+| ![Main menu](docs/images/menu.png) | ![Save slots](docs/images/saves.png) | ![Achievements](docs/images/achievements.png) |
+| **Library** | **Settings** | |
+| ![Library](docs/images/library.png) | ![Settings](docs/images/settings.png) | |
+
+## Quick start (Windows)
+
+1. Install [Python 3.13 or newer](https://www.python.org/downloads/) (tick "Add python.exe to PATH").
+2. Download this repository (green **Code** button, **Download ZIP**) and unzip it.
+3. Double-click **`tools\setup.bat`**. It needs the internet once: it creates a private Python environment,
+   installs the game and puts an **Ascensus ad Mathematica** shortcut in the folder and on your Desktop.
+4. Play with the shortcut.
+
+On macOS or Linux, or if you prefer the terminal:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -e .        # Windows: .venv\Scripts\python -m pip install -e .
+.venv/bin/python -m ascensus                # or simply: .venv/bin/ascensus
 ```
 
-Other commands:
-
-```powershell
-.venv\Scripts\python -m pytest -q        # unit tests
-.venv\Scripts\python tools\smoke.py      # headless play-through at 1280x720 and 1920x1080, with timings
-.venv\Scripts\python tools\make_icon.py  # regenerate assets/icon.png and icon.ico
-powershell -File tools\make_shortcut.ps1 # recreate the shortcuts
-```
-
-Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` next to it.
-
-## Menus
-
-- **Main menu:** Continue (shown when an autosave exists), Play, Saves, Settings, Library, Achievements, Quit,
-  and your best run.
-- **Pause (Esc):** Resume, Stats, Saves, Settings, Library, Main Menu. Pages opened from pause return to the paused game.
-- **Saves:** six slots with a thumbnail, run time, date and kills. Save from pause (asks before overwriting),
-  click a slot to load it, Delete needs a second click. A full run is stored: HP, XP, upgrades, enemies,
-  bosses, equations, variables and speed. An autosave is written every 60 s, when you go to the main menu
-  and when you close the window mid-run; **Continue** loads it. It is deleted when you die.
-- **Settings:** tabs for Display, Controls, Player, Enemies, Boss, Combat, Upgrades & XP and Equations & Variables.
-  Click a value to type it (Enter or clicking elsewhere applies, Tab goes to the next field), use - / + or
-  reset it. Saved to `save/settings.json`.
-- **Library:** every function with a live mini graph, syntax, combat, upgrades, enemies and controls.
-- **Achievements:** 20 of them, saved with your best run in `save/profile.json`.
-
-## Controls
+## How to play
 
 | Input | Effect |
 |---|---|
-| WASD / arrow keys | Move in WASD mode (disabled while typing). Settings, Controls switches between WASD and Mouse |
-| J (rebindable in Settings, Controls) | Dash toward your last movement direction (invulnerable while dashing) |
-| Mouse mode: move the mouse | Walk toward the cursor; stand still inside the dead zone or over the UI. Right-click dashes toward the cursor |
-| 1x / 2x / 3x button (next to the timer) | Click to cycle the game speed; every run starts at 1x |
-| Enter, or click the box | Focus the equation box (time slows to 20 %) |
-| Enter (typing) | Cast the equation; a red error appears if it can't be read |
-| Ctrl+V / C / X / A, Shift+arrows | Paste, copy, cut, select all, extend selection in the box |
-| Esc | Cancel typing; when not typing, pause |
-| G | Toggle the grid and axes |
-| F3 | Toggle the FPS readout |
-| F11 | Switch between full screen and a square resizable window |
+| **Enter** or click the box | Type an equation (time slows to 20 % while you type) |
+| **Enter** while typing | Cast it. A red message explains anything that can't be read |
+| WASD / arrow keys | Move (WASD mode). Settings > Controls switches to **mouse mode**: walk toward the cursor, right-click to dash |
+| **J** (rebindable) | Dash in the direction you are moving (invulnerable while dashing) |
+| Mouse in the equation box | Click to place the cursor, drag or Shift+click to select, double-click selects a word |
+| Ctrl+C / X / V / A, Ctrl+Z | Copy, cut, paste, select all in the box; Ctrl+Z (not typing) undoes a deleted equation |
+| **1x** button next to the timer | Cycle the game speed 1x / 2x / 3x |
+| Esc | Cancel typing, or pause (Resume, Stats, Saves, Settings, Library, Main Menu) |
+| G / F3 / F11 | Grid and axes / FPS readout / full screen or window |
 
-## Sidebar
+**Combat.** The first six enabled equations in the sidebar are active and pulse once per cooldown (1 s at
+first). A pulse deals `Base DMG x 4 / L` to every enemy on the curve, where `L` is the curve's visible
+length: short, precise curves hit hard, screen-filling ones are gentle. Enemies give XP worth half their
+HP; spend it in the bottom-right panel, or switch on **Auto** to always buy the cheapest upgrade.
 
-- **EQUATIONS** (up to 200): drag to reorder, pill switch on/off, **Edit** loads it into the box,
-  **Del** removes it (a toast offers **Undo**; Ctrl+Z also restores, up to 10 deletions), click the colour
-  swatch for the 20-colour picker with names on hover and a Custom row (hue, brightness or a `#RRGGBB` code). The mouse wheel scrolls the
-  list while hovered. The first 6 enabled rows fire; the rest are "queued" (faint, not animated).
-- **VARIABLES** (up to 200, appear automatically): slider -5..5, a value box (type any number),
-  and a play button that ping-pongs the value.
-- Named equations: `eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)` shows `eq4` in bold. Names are unique labels.
-- Everything is saved to `save/equations.json` after every change.
+**Sidebar.** Drag equations to reorder them, switch them on and off, edit or delete them (with undo), and
+click the colour swatch for 20 colours plus a custom picker. The **VARIABLES** section appears as soon as
+an equation uses a variable.
 
-## Equation syntax cheat-sheet
+## Equation guide
 
-- **Variables and constants:** `x`, `y`, `t` (seconds of game time), `pi` (or `π`), `e`. Any other
-  single letter, or a letter with a subscript like `a_1`, is a **variable** that starts at 1.
-  `ab` means a·b; `ab_1` means a·b_1.
-- **Operators:** `+ - * / % ^` (also `**`, `×`, `÷`, `−`), parentheses, and implicit multiplication:
-  `2x`, `3sin(x)`, `(x+1)(x-1)`, `xy`, `2pi`.
-- **Functions** (always with parentheses; `ln` and `in` are the same):
-  - trig `sin cos tan sec csc cot`, inverse `asin/arcsin acos atan asec acsc acot`;
-  - hyperbolic `sinh cosh tanh asinh acosh atanh`;
-  - `sqrt cbrt abs sign floor ceil round exp ln log log2` (`log` is base 10);
-  - two arguments: `min max mod hypot atan2 root(n,x) log(b,x)`.
-- **Meaning:**
-  - no `=` and no `y`: it is `y = expr`, so `x^2` draws a parabola;
-  - no `=` but with `y`: the curve is `expr = 0`;
-  - one `=`: the curve is `left = right`, e.g. `x = 2`, `1 = x^2 + y^2`, `y = x`.
-- An equation needs `x` or `y`; one `=` at most; max 120 characters (after the name); case is ignored.
-- Examples: `x^3`, `x = -4`, `y = a*sin(x + t)`, `x^2 + y^2 = (t % 5)^2`, `tan(sqrt(x^2 + y^2)) = y / x`.
-- Limits: `x^(1/3)` is undefined for negative x (use `cbrt(x)`), and curves that only touch zero
-  without crossing it, like `(x-1)^2 = 0`, are not drawn.
+- **Names:** `x`, `y`, `t` (game seconds), `pi`, `e`. Any other letter, or a letter with a subscript like
+  `a_1`, is a variable that starts at 1. `ab` means `a*b`.
+- **Operators:** `+ - * / % ^`, parentheses and implicit multiplication: `2x`, `3sin(x)`, `(x+1)(x-1)`.
+- **Functions:** `sin cos tan sec csc cot`, `asin acos atan asec acsc acot` (also `arcsin`, ...),
+  `sinh cosh tanh asinh acosh atanh`, `sqrt cbrt abs sign floor ceil round exp ln log log2`, and two-argument
+  `min max mod hypot atan2 root(n, x) log(base, x)`.
+- **What gets drawn:** `x^2` means `y = x^2`; an expression with `y` but no `=` means `expr = 0`; with one `=`,
+  both sides are compared: `x = 2`, `1 = x^2 + y^2`.
+- **Names for equations:** `eq4: ...` shows `eq4` in the sidebar. Names must be unique.
+- **Try these:** `y = a*sin(x + t)`, `x^2 + y^2 = (t % 5)^2`, `0 = sin(x*a)*sin(y*a)`, `1 = x^2+(y-sqrt(abs(x)))^2`.
 
-## Combat, XP and upgrades
+## Saves and files
 
-- A pulse deals `base_dmg * 4 / L` damage (clamped to 1 .. base_dmg/2) to every enemy near the
-  curve, where `L` is the curve's visible length in grid units. Short curves hit hard, long ones are gentle.
-  The pulse period is your **cooldown** stat (starts at 1 s).
-- Enemies collide with each other and with you, and knock back when they hit. You regenerate 10 HP/min.
-- Kills give XP (half the enemy's max HP). Spend it in the bottom-right panel: **Max HP** (+10, heals 10),
-  **Base DMG** (+10), **Cooldown** (x0.95) and **Auto** (buys the cheapest affordable upgrade). Costs
-  start at 20 XP and grow x1.12 per purchase of that stat; levels reset every run.
-- HUD (top right): kills with a skull, XP, FPS. Your HP is the green number under you, enemy HP the red numbers.
-- All numbers live in `ascensus/config.py`; most can be changed in Settings.
+Everything is stored in the `save/` folder next to the game (it is not part of the repository):
+`settings.json`, `profile.json` (best run and achievements) and `slots/` (the six slots and the autosave).
+**Export** on a slot writes a single `.ascensus` file you can share; **Import** loads one into any slot.
+Delete a file to reset it.
 
-## Files and saves
+## For developers
 
-`save/equations.json` (equations, colours, variables), `save/settings.json`, `save/profile.json`
-(best run, lifetime counters, achievements) and `save/slots/` (save slots and the autosave).
-Delete a file to reset it. An old `save/formulas.json` is migrated to `save/equations.json` once
-(the old file is left in place). The `save/` folder is not part of the repository.
+```bash
+python -m pip install -e ".[dev]"
+python -m pytest                    # 700+ unit tests, headless
+python tools/smoke.py               # plays the game headless at 1280x720 and 1920x1080, prints frame times
+python tools/screenshots.py         # re-renders the images in docs/images/
+```
 
-## Performance
+Set `ASCENSUS_PERF_GATE=1` to make `smoke.py` fail on slow frames (off by default because timings depend on
+the machine). The tests never touch your real `save/` folder.
 
-`tools\smoke.py` plays the game headless at 1280x720 and 1920x1080 with 200 enemies and reports frame times.
-Gates: 8 ms average / 16 ms p95 at 1280x720 and 12.5 / 18 ms at 1920x1080 (target there: 10 / 16).
-Window text never overflows: the QA test `tests/test_overflow_audit.py` renders every page at 800x600,
-800x800 and 1920x1080. The smallest window is 800x600.
+```
+ascensus/
+  core/       equation parser, curve engine (root finding + marching-squares lines), equations, variables
+  game/       player, enemies, upgrades, controls, save games, profile, achievements, stats
+  scenes/     menu, game, game over and the pages (settings, library, achievements, saves, stats)
+  ui/         widgets, sidebar, equation box, colour picker, icons, file dialogs, layout
+  data/       Library texts
+  assets/     app icon and Kenney icons
+  config.py   every tunable number (most are editable in Settings)
+tests/        pytest suite
+tools/        setup, smoke run, screenshots, icon and shortcut scripts
+docs/         README images and the development notes the game was planned with
+```
 
-## License
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the [changelog](CHANGELOG.md).
 
-Released into the public domain under the [Unlicense](LICENSE).
+## Credits and license
 
-Third-party notes:
-- Icons in `assets/icons/` are from [Kenney](https://kenney.nl) (Game Icons and Board Game Icons), CC0 1.0
-  public domain; the license text is in `assets/icons/License.txt`. Other icons are drawn in code.
-- Text uses pygame's built-in font through `pygame.freetype`; no font files are bundled.
-- pygame-ce (LGPL) and numpy (BSD) are installed with pip and are not part of this repository.
+Made by Uncertainty Omega. The game is released into the public domain under the [Unlicense](LICENSE).
+
+- Icons in `ascensus/assets/icons/` are from [Kenney](https://kenney.nl) (Game Icons, Board Game Icons),
+  CC0 1.0 public domain; see `ascensus/assets/icons/License.txt`. Other icons are drawn in code.
+- Text uses the font that ships with pygame. The dependencies, [pygame-ce](https://pyga.me) (LGPL) and
+  [NumPy](https://numpy.org) (BSD), are installed by pip and are not part of this repository.

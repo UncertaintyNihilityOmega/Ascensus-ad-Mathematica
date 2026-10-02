@@ -7,7 +7,7 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.equations import EquationManager  # noqa: E402
+from ascensus.core.equations import EquationManager  # noqa: E402
 from ascensus.ui.colorpicker import CustomRow, hsv_to_rgb, parse_hex, rgb_to_hsv, to_hex  # noqa: E402
 from ascensus.ui.inputbox import InputBox  # noqa: E402
 from ascensus.ui.sidebar import Sidebar  # noqa: E402

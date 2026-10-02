@@ -8,10 +8,11 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, display, settings, view  # noqa: E402
+from ascensus.game.profile import Profile, set_profile  # noqa: E402
 from ascensus.main import take_next  # noqa: E402
-from ascensus.profile import Profile, set_profile  # noqa: E402
-from ascensus.scenes import GameScene, open_page  # noqa: E402
-from ascensus.settings_scene import SettingsScene  # noqa: E402
+from ascensus.scenes.base import open_page  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent

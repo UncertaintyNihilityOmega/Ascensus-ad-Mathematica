@@ -6,12 +6,15 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
+from ascensus.game.profile import Profile, set_profile  # noqa: E402
+from ascensus.game.savegame import SlotStore, restore, snapshot  # noqa: E402
 from ascensus.main import autosave_live, track_game  # noqa: E402
-from ascensus.profile import Profile, set_profile  # noqa: E402
-from ascensus.saves_scene import SavesScene  # noqa: E402
-from ascensus.savegame import SlotStore, restore, snapshot  # noqa: E402
-from ascensus.scenes import GameOverScene, GameScene, MenuScene, button_stack, open_page  # noqa: E402
-from ascensus.settings_scene import SettingsScene  # noqa: E402
+from ascensus.scenes.base import button_stack, open_page  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.game_over import GameOverScene  # noqa: E402
+from ascensus.scenes.menu import MenuScene  # noqa: E402
+from ascensus.scenes.saves_page import SavesScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 

@@ -1,10 +1,10 @@
 # Creates "Ascensus ad Mathematica.lnk" in the project folder and on the Desktop.
-# Target: .venv\Scripts\pythonw.exe -m ascensus (working dir = project folder, icon = assets\icon.ico).
+# Target: .venv\Scripts\pythonw.exe -m ascensus (working dir = project folder, icon = ascensus\assets\icon.ico).
 $ErrorActionPreference = "Stop"
 $project = Split-Path -Parent $PSScriptRoot
 $name = "Ascensus ad Mathematica.lnk"
 $target = Join-Path $project ".venv\Scripts\pythonw.exe"
-$icon = Join-Path $project "assets\icon.ico"
+$icon = Join-Path $project "ascensus\assets\icon.ico"
 $shell = New-Object -ComObject WScript.Shell
 $folders = @($project, [Environment]::GetFolderPath("Desktop"))
 foreach ($folder in $folders) {

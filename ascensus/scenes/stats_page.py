@@ -6,8 +6,8 @@ from typing import Callable
 import pygame
 
 from ascensus import config, view
-from ascensus.scenes import Scene
-from ascensus.stats import build_stats
+from ascensus.game.stats import build_stats
+from ascensus.scenes.base import Scene
 from ascensus.ui.widgets import Button, draw_text
 
 

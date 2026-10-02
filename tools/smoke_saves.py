@@ -7,9 +7,9 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _TMP = Path(tempfile.gettempdir())
-os.environ.setdefault("ASCENSUS_PROFILE", str(_TMP / f"ascensus_smoke_p20_profile_{os.getpid()}.json"))
-os.environ.setdefault("ASCENSUS_SETTINGS", str(_TMP / f"ascensus_smoke_p20_settings_{os.getpid()}.json"))
-os.environ.setdefault("ASCENSUS_SLOTS", str(_TMP / f"ascensus_smoke_p20_slots_{os.getpid()}"))
+os.environ.setdefault("ASCENSUS_PROFILE", str(_TMP / f"ascensus_smoke_saves_profile_{os.getpid()}.json"))
+os.environ.setdefault("ASCENSUS_SETTINGS", str(_TMP / f"ascensus_smoke_saves_settings_{os.getpid()}.json"))
+os.environ.setdefault("ASCENSUS_SLOTS", str(_TMP / f"ascensus_smoke_saves_slots_{os.getpid()}"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import shutil  # noqa: E402
@@ -18,10 +18,10 @@ import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.profile import Profile  # noqa: E402
-from ascensus.saves_scene import SavesScene  # noqa: E402
-from ascensus.savegame import SlotStore, restore, snapshot  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
+from ascensus.game.profile import Profile  # noqa: E402
+from ascensus.game.savegame import SlotStore, restore, snapshot  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.saves_page import SavesScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 from ascensus.ui.undo_toast import UndoToast  # noqa: E402
 
@@ -76,7 +76,7 @@ def _saves_page(screen, w: int, h: int, store: SlotStore, game) -> SavesScene:
 
 def phase(screen) -> None:
     """Play, save to a slot, restore and compare, the Saves page at three sizes, autosave and undo."""
-    slots_dir = _TMP / f"ascensus_smoke_p20_run_{os.getpid()}"
+    slots_dir = _TMP / f"ascensus_smoke_saves_run_{os.getpid()}"
     shutil.rmtree(slots_dir, ignore_errors=True)
     store = SlotStore(slots_dir)
     old_size = (view.W, view.H)
@@ -161,7 +161,8 @@ def phase(screen) -> None:
 
 def glue_phase(screen) -> None:
     """Menu / pause lists, Continue, autosave rules, Saves from pause, Del + undo toast and Ctrl+Z."""
-    from ascensus.scenes import GameOverScene, MenuScene
+    from ascensus.scenes.game_over import GameOverScene
+    from ascensus.scenes.menu import MenuScene
     default = SlotStore()                                    # the folder games autosave to (ASCENSUS_SLOTS)
     shutil.rmtree(default.dir, ignore_errors=True)
     for w, h in ((800, 600), (1280, 720), (1920, 1080)):
@@ -230,7 +231,7 @@ def glue_phase(screen) -> None:
 def main() -> None:
     pygame.init()
     phase(pygame.display.set_mode((1280, 720)))
-    print("smoke_p20 OK")
+    print("smoke_saves OK")
 
 
 if __name__ == "__main__":

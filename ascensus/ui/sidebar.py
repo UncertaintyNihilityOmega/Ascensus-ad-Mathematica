@@ -4,7 +4,7 @@ from __future__ import annotations
 import pygame
 
 from ascensus import config, view
-from ascensus.equations import EquationManager
+from ascensus.core.equations import EquationManager
 from ascensus.ui import icons
 from ascensus.ui.colorpicker import CustomRow
 from ascensus.ui.inputbox import InputBox

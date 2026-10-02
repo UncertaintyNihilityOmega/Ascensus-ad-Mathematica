@@ -11,7 +11,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from ascensus.mathparse import EquationError, ParsedEquation, parse_equation
+from ascensus.core.mathparse import EquationError, ParsedEquation, parse_equation
 
 SAMPLES = 64            # sample points per check
 MIN_VALID = 16          # finite, non-zero samples needed to decide

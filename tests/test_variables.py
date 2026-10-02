@@ -8,14 +8,14 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.enemies import Swarm  # noqa: E402
-from ascensus.equations import EquationManager  # noqa: E402
-from ascensus.mathparse import EquationError  # noqa: E402
+from ascensus.core.equations import EquationManager  # noqa: E402
+from ascensus.core.mathparse import EquationError  # noqa: E402
+from ascensus.core.variables import VariableStore  # noqa: E402
+from ascensus.game.enemies import Swarm  # noqa: E402
 from ascensus.ui import sidebar as sidebar_mod  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 from ascensus.ui.inputbox import InputBox  # noqa: E402
 from ascensus.ui.sidebar import Sidebar  # noqa: E402
-from ascensus.variables import VariableStore  # noqa: E402
 
 
 @pytest.fixture(scope="module", autouse=True)

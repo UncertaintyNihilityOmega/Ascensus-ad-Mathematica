@@ -6,10 +6,10 @@ from typing import Callable
 import pygame
 
 from ascensus import config, view
-from ascensus.achievements import ACHIEVEMENTS, TOTAL
-from ascensus.library import line_height, wrap_text
-from ascensus.profile import Profile
-from ascensus.scenes import Scene
+from ascensus.game.achievements import ACHIEVEMENTS, TOTAL
+from ascensus.game.profile import Profile
+from ascensus.scenes.base import Scene
+from ascensus.scenes.library_page import line_height, wrap_text
 from ascensus.ui import icons
 from ascensus.ui.widgets import Button, ScrollArea, draw_text, get_font
 
@@ -43,7 +43,7 @@ class AchievementsScene(Scene):
 
     def __init__(self, back: Callable[[], object], profile: Profile | None = None) -> None:
         super().__init__()
-        from ascensus.profile import get_profile
+        from ascensus.game.profile import get_profile
         self.back = back
         self.profile = profile if profile is not None else get_profile()
         m = config.PAGE_MARGIN

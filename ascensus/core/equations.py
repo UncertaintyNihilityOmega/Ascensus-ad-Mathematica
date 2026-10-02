@@ -6,10 +6,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from ascensus import config, view
-from ascensus.curvefield import CurveData, build_curve, render_curve
-from ascensus.enemies import Swarm
-from ascensus.mathparse import EquationError, ParsedEquation, parse_equation
-from ascensus.variables import VariableStore
+from ascensus.core.curvefield import CurveData, build_curve, render_curve
+from ascensus.core.mathparse import EquationError, ParsedEquation, parse_equation
+from ascensus.core.variables import VariableStore
+from ascensus.game.enemies import Swarm
 
 
 @dataclass

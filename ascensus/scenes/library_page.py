@@ -6,8 +6,9 @@ from typing import Callable
 
 import pygame
 
-from ascensus import config, library_data, view
-from ascensus.scenes import Scene
+from ascensus import config, view
+from ascensus.data import library_data
+from ascensus.scenes.base import Scene
 from ascensus.ui.minigraph import render_minigraph
 from ascensus.ui.widgets import Button, ScrollArea, Tabs, draw_text, get_font
 

@@ -10,13 +10,15 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, display, settings, view  # noqa: E402
-from ascensus.achievements_scene import AchievementsScene  # noqa: E402
-from ascensus.library import LibraryScene  # noqa: E402
-from ascensus.pages import StatsScene  # noqa: E402
-from ascensus.profile import Profile, set_profile  # noqa: E402
-from ascensus.saves_scene import SavesScene  # noqa: E402
-from ascensus.scenes import GameOverScene, GameScene, MenuScene  # noqa: E402
-from ascensus.settings_scene import SettingsScene  # noqa: E402
+from ascensus.game.profile import Profile, set_profile  # noqa: E402
+from ascensus.scenes.achievements_page import AchievementsScene  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.game_over import GameOverScene  # noqa: E402
+from ascensus.scenes.library_page import LibraryScene  # noqa: E402
+from ascensus.scenes.menu import MenuScene  # noqa: E402
+from ascensus.scenes.saves_page import SavesScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene  # noqa: E402
+from ascensus.scenes.stats_page import StatsScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 SIZES = [(800, 600), (800, 800), (1920, 1080)]

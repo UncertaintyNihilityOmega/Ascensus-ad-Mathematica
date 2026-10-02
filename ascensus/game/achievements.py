@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ascensus import config
-from ascensus.eqmatch import matches
-from ascensus.profile import Profile
+from ascensus.core.eqmatch import matches
+from ascensus.game.profile import Profile
 
 
 @dataclass(frozen=True)

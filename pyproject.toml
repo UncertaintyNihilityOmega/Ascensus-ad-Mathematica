@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ascensus-ad-mathematica"
+version = "1.0.0"
+description = "A free survival game where the equations you type are your weapons."
+readme = "README.md"
+license = "Unlicense"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+authors = [{ name = "Uncertainty Omega" }]
+keywords = ["game", "math", "equations", "graphing", "survival", "pygame"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: Education",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "pygame-ce>=2.5.7",   # pygame-ce, never plain pygame next to it
+    "numpy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/UncertaintyNihilityOmega/Ascensus-ad-Mathematica"
+Issues = "https://github.com/UncertaintyNihilityOmega/Ascensus-ad-Mathematica/issues"
+
+[project.gui-scripts]
+ascensus = "ascensus.main:main"
+
+[tool.setuptools.packages.find]
+include = ["ascensus*"]
+
+[tool.setuptools.package-data]
+ascensus = ["assets/*.png", "assets/*.ico", "assets/icons/*.png", "assets/icons/*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -8,11 +8,13 @@ import pygame  # noqa: E402
 import pytest  # noqa: E402
 
 from ascensus import config, display, settings, view  # noqa: E402
-from ascensus.pages import StatsScene, column_layout  # noqa: E402
-from ascensus.profile import Profile, set_profile  # noqa: E402
-from ascensus.scenes import QUIT, GameScene, MenuScene, open_page  # noqa: E402
-from ascensus.settings_scene import SettingsScene, note_text  # noqa: E402
-from ascensus.stats import build_stats, mmss, next_boss_in  # noqa: E402
+from ascensus.game.profile import Profile, set_profile  # noqa: E402
+from ascensus.game.stats import build_stats, mmss, next_boss_in  # noqa: E402
+from ascensus.scenes.base import QUIT, open_page  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.menu import MenuScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene, note_text  # noqa: E402
+from ascensus.scenes.stats_page import StatsScene, column_layout  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 
 
@@ -53,7 +55,7 @@ def test_mmss_and_next_boss():
 
 
 def fake_game(**over):
-    from ascensus.upgrades import Upgrades
+    from ascensus.game.upgrades import Upgrades
     up = Upgrades()
     up.add_xp(100)
     up.buy("max_hp")

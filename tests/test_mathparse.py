@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from ascensus.mathparse import EquationError, parse_equation
+from ascensus.core.mathparse import EquationError, parse_equation
 
 X = np.array([[-2.0, -0.5, 1.5, 3.0]])
 Y = np.array([[1.0, 2.0, -3.0, 0.5]])

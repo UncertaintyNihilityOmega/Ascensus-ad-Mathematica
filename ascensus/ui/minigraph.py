@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import pygame
 
-from ascensus import config, curvefield
-from ascensus.mathparse import EquationError, parse_equation
+from ascensus import config
+from ascensus.core import curvefield
+from ascensus.core.mathparse import EquationError, parse_equation
 
 MINIGRAPH_CACHE_MAX = 200
 _cache: dict[tuple, pygame.Surface] = {}

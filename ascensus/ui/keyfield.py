@@ -4,7 +4,7 @@ from __future__ import annotations
 import pygame
 
 from ascensus import config
-from ascensus import controls
+from ascensus.game import controls
 from ascensus.ui.widgets import draw_text
 
 

@@ -1,7 +1,7 @@
 """P18 smoke phase: every icon, sidebar pencil/trash rows, the colour popup with its Custom row.
 
 `phase(screen)` runs at the screen's size (tools/smoke.py can call it at 1280x720 and 1920x1080);
-`python tools/smoke_p18.py` runs it standalone at both sizes.
+`python tools/smoke_icons_colors.py` runs it standalone at both sizes.
 """
 import os
 import sys
@@ -11,14 +11,14 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _tmp = Path(tempfile.gettempdir())
-os.environ.setdefault("ASCENSUS_PROFILE", str(_tmp / f"ascensus_smoke_p18_profile_{os.getpid()}.json"))
-os.environ.setdefault("ASCENSUS_SETTINGS", str(_tmp / f"ascensus_smoke_p18_settings_{os.getpid()}.json"))
+os.environ.setdefault("ASCENSUS_PROFILE", str(_tmp / f"ascensus_smoke_icons_colors_profile_{os.getpid()}.json"))
+os.environ.setdefault("ASCENSUS_SETTINGS", str(_tmp / f"ascensus_smoke_icons_colors_settings_{os.getpid()}.json"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pygame  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
 from ascensus.ui import icons  # noqa: E402
 from ascensus.ui.colorpicker import parse_hex  # noqa: E402
 
@@ -94,7 +94,7 @@ def phase(screen: pygame.Surface) -> None:
     game.handle_event(_ev(pygame.MOUSEBUTTONDOWN, pos=sb._picker_cell(5).center, button=1))   # Red, closes
     assert sb.picker_idx is None and fm.entries[1].color == config.CURVE_PALETTE_20[5]
     _step(game, screen)
-    print(f"smoke_p18 OK at {w}x{h}")
+    print(f"smoke_icons_colors OK at {w}x{h}")
 
 
 def main() -> None:

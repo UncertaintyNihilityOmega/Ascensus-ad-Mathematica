@@ -6,7 +6,7 @@ from typing import Callable
 import pygame
 
 from ascensus import config, view
-from ascensus.upgrades import STATS, Upgrades
+from ascensus.game.upgrades import STATS, Upgrades
 from ascensus.ui.widgets import draw_text
 
 

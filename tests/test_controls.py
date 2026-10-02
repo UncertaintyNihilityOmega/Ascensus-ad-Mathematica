@@ -6,10 +6,11 @@ import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 import pytest  # noqa: E402
 
-from ascensus import config, controls, settings, view  # noqa: E402
-from ascensus.profile import Profile  # noqa: E402
-from ascensus.scenes import GameScene  # noqa: E402
-from ascensus.settings_scene import SettingsScene  # noqa: E402
+from ascensus import config, settings, view  # noqa: E402
+from ascensus.game import controls  # noqa: E402
+from ascensus.game.profile import Profile  # noqa: E402
+from ascensus.scenes.game import GameScene  # noqa: E402
+from ascensus.scenes.settings_page import SettingsScene  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 from ascensus.ui.keyfield import KeyField  # noqa: E402
 
@@ -216,7 +217,7 @@ def test_wasd_mode_still_moves_with_direction_override():
 
 
 def test_player_face_ignored_mid_dash():
-    from ascensus.player import Player
+    from ascensus.game.player import Player
     p = Player()
     p.face((0, 3))
     assert tuple(p.facing) == pytest.approx((0, 1))

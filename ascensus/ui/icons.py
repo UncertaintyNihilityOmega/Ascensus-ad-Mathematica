@@ -1,8 +1,8 @@
-"""Icons: white Kenney CC0 PNGs from assets/icons/ tinted on demand, plus a few drawn in code.
+"""Icons: white Kenney CC0 PNGs from ascensus/assets/icons/ tinted on demand, plus a few drawn in code.
 
 `icon(name, size, color)` returns a square surface, cached by (name, size, color). "play" is not in the
 Kenney packs and is drawn with primitives; the other drawers below are fallbacks used only when a PNG is
-missing (assets/icons is fetched by tools/fetch_icons.py). No Unicode glyphs anywhere.
+missing (ascensus/assets/icons is fetched by tools/fetch_icons.py). No Unicode glyphs anywhere.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import pygame
 from ascensus import config
 
 BASE = 96                                       # drawn-in-code icons are painted at this size, then scaled
-ICON_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "icons"
+ICON_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 Color = tuple[int, ...]
 WHITE = (255, 255, 255)
 CLEAR = (0, 0, 0, 0)
@@ -156,7 +156,7 @@ def _source(name: str) -> pygame.Surface:
 
 
 def has_png(name: str) -> bool:
-    """True when `name` is backed by a PNG in assets/icons (False for play and for missing files)."""
+    """True when `name` is backed by a PNG in ascensus/assets/icons (False for play and for missing files)."""
     return name != "play" and (ICON_DIR / f"{_ALIASES.get(name, name)}.png").is_file()
 
 

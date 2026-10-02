@@ -3,8 +3,8 @@ import numpy as np
 import pytest
 
 from ascensus import config, view
-from ascensus.enemies import Spawner, Swarm, difficulty
-from ascensus.player import Player
+from ascensus.game.enemies import Spawner, Swarm, difficulty
+from ascensus.game.player import Player
 
 
 def test_difficulty_curve():
