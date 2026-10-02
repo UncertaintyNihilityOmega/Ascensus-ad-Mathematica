@@ -1,7 +1,7 @@
 # Ascensus ad Mathematica
 
 **Next-session prompt** (paste into a fresh Sonnet session, after `/clear`):
-> Continue Ascensus ad Mathematica. Read CLAUDE.md, plan/STATUS.md and the next package in plan/PACKAGES.md (plus only the sections of plan/DESIGN.md and plan/ARCHITECTURE.md that package references). Implement that one package, run its checks, update plan/STATUS.md, then stop. No subagents. Report in three lines.
+> Continue Ascensus ad Mathematica. Read CLAUDE.md, plan/STATUS.md and plan/PACKAGES.md, then do every remaining package in order (spec: plan/DESIGN_V3.md, read only the sections each package references). Packages marked parallel may use up to 3 agents with separate files; P16, P17 and P21 run alone. After each package: pytest + smoke, a STATUS.md line, a git commit. Push in P21. Report briefly when all are done.
 
 ## Goal
 This is a Python prototype of a Magic Survival-style survival game. The player's only weapons are **math curves they type**. Each formula is drawn across the window, with the player at (0,0) in the middle, and every curve pulses damage onto the enemies it touches.
