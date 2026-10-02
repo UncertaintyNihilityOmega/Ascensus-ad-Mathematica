@@ -11,7 +11,7 @@ MAX_DT = 0.05
 
 # Paths
 ROOT = Path(__file__).resolve().parent.parent
-SAVE_PATH = Path(os.environ.get("ASCENSUS_SAVE", ROOT / "save" / "formulas.json"))
+SAVE_PATH = Path(os.environ.get("ASCENSUS_SAVE", ROOT / "save" / "equations.json"))
 PROFILE_PATH = Path(os.environ.get("ASCENSUS_PROFILE", ROOT / "save" / "profile.json"))
 SETTINGS_PATH = Path(os.environ.get("ASCENSUS_SETTINGS", ROOT / "save" / "settings.json"))
 ICON_PATH = ROOT / "assets" / "icon.png"
@@ -70,8 +70,8 @@ ENEMY_HP_TEXT_COLOR = (255, 70, 70)
 PLAYER_HP_FONT = 20
 PLAYER_HP_TEXT_COLOR = (80, 220, 120)
 
-# Formulas and combat
-MAX_FORMULA_LEN = 120
+# Equations and combat
+MAX_EQUATION_LEN = 120
 NAME_MAX_LEN = 16               # longest equation name ("eq4: ...")
 VAR_DEFAULT = 1.0               # value of a variable the caller did not supply
 MAX_VARIABLES = 200

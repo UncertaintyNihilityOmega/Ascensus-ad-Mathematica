@@ -2,14 +2,14 @@
 import numpy as np
 import pytest
 
-from ascensus.mathparse import FormulaError, parse_formula
+from ascensus.mathparse import EquationError, parse_equation
 
 X = np.array([[-2.0, -0.5, 1.5, 3.0]])
 Y = np.array([[1.0, 2.0, -3.0, 0.5]])
 
 
 def F(text, t=0.0):
-    return parse_formula(text).func(X, Y, t)
+    return parse_equation(text).func(X, Y, t)
 
 
 MUST_PASS = [
@@ -24,14 +24,14 @@ REJECTS = ["sin x", "x==2", "2=3", "import os", "__import__('os')", "x.real", "f
 
 @pytest.mark.parametrize("text", MUST_PASS + VARIATIONS)
 def test_accepts(text):
-    pf = parse_formula(text)
+    pf = parse_equation(text)
     assert pf.func(X, Y, 0.0).shape == X.shape
 
 
 @pytest.mark.parametrize("text", REJECTS)
 def test_rejects(text):
-    with pytest.raises(FormulaError):
-        parse_formula(text)
+    with pytest.raises(EquationError):
+        parse_equation(text)
 
 
 def test_meaning_y_equals_expr():
@@ -73,15 +73,15 @@ def test_sqrt_power_is_nan_for_negative_x():
 
 
 def test_t_flag_and_use():
-    assert parse_formula("y = 2sin(x + t)").uses_t
-    assert not parse_formula("y = sin(x)").uses_t
+    assert parse_equation("y = 2sin(x + t)").uses_t
+    assert not parse_equation("y = sin(x)").uses_t
     assert np.allclose(F("y = t", t=2.5), Y - 2.5)
     assert np.allclose(F("x^2 + y^2 = (t % 5)^2", t=7.0), X**2 + Y**2 - 4.0)
 
 
 def test_bare_constant_needs_x_or_y():
-    with pytest.raises(FormulaError, match="needs x or y"):
-        parse_formula("2pi")
+    with pytest.raises(EquationError, match="needs x or y"):
+        parse_equation("2pi")
 
 
 def test_error_messages():
@@ -89,21 +89,21 @@ def test_error_messages():
                       ("foo(x)", "Unknown function"), ("x.real", "Unexpected character"),
                       ("x=", "Missing expression"), ("", "empty"), ("x+", "read"),
                       ("1/0 + x", "evaluate")]:
-        with pytest.raises(FormulaError, match=msg):
-            parse_formula(text)
+        with pytest.raises(EquationError, match=msg):
+            parse_equation(text)
 
 
 def test_huge_power_cannot_hang():
-    with pytest.raises(FormulaError):
-        parse_formula("y=9^9^9^9^9")
+    with pytest.raises(EquationError):
+        parse_equation("y=9^9^9^9^9")
 
 
 def test_no_builtins_or_attribute_access():
     # ("lambda: x" is a named equation and "x if y else 1" a product of variables: both harmless)
     for bad in ["x.__class__", "(x)[0]", "lambda x: x", "x ? y : 1", "[x]", "'a'", "x, y", "(1, x)"]:
-        with pytest.raises(FormulaError):
-            parse_formula(bad)
+        with pytest.raises(EquationError):
+            parse_equation(bad)
 
 
 def test_source_is_stripped():
-    assert parse_formula("  x^2  ").source == "x^2"
+    assert parse_equation("  x^2  ").source == "x^2"

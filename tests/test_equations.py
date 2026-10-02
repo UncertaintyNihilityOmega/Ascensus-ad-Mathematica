@@ -1,17 +1,17 @@
-"""FormulaManager tests (no save/load yet): list ops, active set, status, pulses, t-rebuild."""
+"""EquationManager tests (no save/load yet): list ops, active set, status, pulses, t-rebuild."""
 import numpy as np
 import pytest
 
 from ascensus import config, view
 from ascensus.enemies import Swarm
-from ascensus.formulas import FormulaManager, pulse_damage
-from ascensus.mathparse import FormulaError
+from ascensus.equations import EquationManager, pulse_damage
+from ascensus.mathparse import EquationError
 
 ORIGIN = np.zeros(2)
 
 
 def mgr(*texts):
-    m = FormulaManager()
+    m = EquationManager()
     for t in texts:
         m.add(t)
     return m
@@ -29,7 +29,7 @@ def swarm_at(*screen_pts):
 def test_add_errors_and_colors():
     m = mgr("x^2", "sin(x)")
     assert [e.color for e in m.entries] == config.CURVE_PALETTE_20[:2]
-    with pytest.raises(FormulaError):
+    with pytest.raises(EquationError):
         m.add("sin x")
     assert len(m.entries) == 2
     m.delete(0)
@@ -40,7 +40,7 @@ def test_full_sidebar(monkeypatch):
     assert config.MAX_ROWS == 200
     monkeypatch.setattr(config, "MAX_ROWS", 5)
     m = mgr(*["x^2"] * config.MAX_ROWS)
-    with pytest.raises(FormulaError, match="Sidebar full"):
+    with pytest.raises(EquationError, match="Sidebar full"):
         m.add("x")
 
 
@@ -51,7 +51,7 @@ def test_replace_keeps_color_and_position():
     m.replace(1, "cos(x)")
     assert m.entries[1].text == "cos(x)" and m.entries[1].color == color
     assert m.entries[1].pulse_timer == config.FIRST_PULSE_DELAY
-    with pytest.raises(FormulaError):
+    with pytest.raises(EquationError):
         m.replace(1, "nope(")
     assert m.entries[1].text == "cos(x)"
 
@@ -134,7 +134,7 @@ def test_player_offset_moves_world_enemy_into_curve():
     assert len(sw) == 0                               # hit (27.8 dmg) and killed
 
 
-def test_t_formula_rebuild_rate_and_round_robin():
+def test_t_equation_rebuild_rate_and_round_robin():
     m = mgr("y = sin(x + t)", "y = cos(x - t)", "x^2")
     sw = swarm_at()
     calls = []
@@ -152,13 +152,13 @@ def test_t_formula_rebuild_rate_and_round_robin():
 
 # --- persistence -------------------------------------------------------
 def test_save_load_round_trip(tmp_path):
-    path = tmp_path / "sub" / "formulas.json"
-    m = FormulaManager(path)
+    path = tmp_path / "sub" / "equations.json"
+    m = EquationManager(path)
     for t in ("x^2", "sin(x)", "x = 2"):
         m.add(t)
     m.toggle(1)
     m.move(2, 0)
-    m2 = FormulaManager(path)
+    m2 = EquationManager(path)
     m2.load()
     assert [(e.text, e.enabled) for e in m2.entries] == [("x = 2", True), ("x^2", True), ("sin(x)", False)]
     assert [e.color for e in m2.entries] == [m.entries[i].color for i in range(3)]   # colours are saved
@@ -167,11 +167,11 @@ def test_save_load_round_trip(tmp_path):
 
 def test_every_change_saves(tmp_path):
     path = tmp_path / "f.json"
-    m = FormulaManager(path)
+    m = EquationManager(path)
 
     def saved():
         import json
-        return [r["text"] for r in json.loads(path.read_text())["formulas"]]
+        return [r["text"] for r in json.loads(path.read_text())["equations"]]
 
     m.add("x^2"); m.add("sin(x)")
     assert saved() == ["x^2", "sin(x)"]
@@ -187,25 +187,25 @@ def test_every_change_saves(tmp_path):
 
 def test_load_skips_bad_entries_and_files(tmp_path):
     path = tmp_path / "f.json"
-    path.write_text('{"version":1,"formulas":[{"text":"x^2","enabled":true},{"text":"sin x"},'
+    path.write_text('{"version":1,"equations":[{"text":"x^2","enabled":true},{"text":"sin x"},'
                     '{"nope":1},"junk",{"text":"x = 2","enabled":false}]}')
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.load()
     assert [(e.text, e.enabled) for e in m.entries] == [("x^2", True), ("x = 2", False)]
-    for bad in ("not json", '{"formulas": 5}', "[]", ""):
+    for bad in ("not json", '{"equations": 5}', "[]", ""):
         path.write_text(bad)
         m.load()
         assert m.entries == []
-    FormulaManager(tmp_path / "missing.json").load()      # no file: fine
-    FormulaManager(None).save()                           # no path: no-op
+    EquationManager(tmp_path / "missing.json").load()      # no file: fine
+    EquationManager(None).save()                           # no path: no-op
 
 
 # --- named equations (P7) ----------------------------------------------
 def test_names_must_be_unique():
     m = mgr("eq4: x^2+y^2=1", "y = x")
-    with pytest.raises(FormulaError, match="Name 'eq4' already used"):
+    with pytest.raises(EquationError, match="Name 'eq4' already used"):
         m.add("eq4: y = 2x")
-    with pytest.raises(FormulaError, match="Name 'EQ4' already used"):     # case-insensitive
+    with pytest.raises(EquationError, match="Name 'EQ4' already used"):     # case-insensitive
         m.add("EQ4: y = 2x")
     assert len(m.entries) == 2
     m.add("eq5: y = 2x")
@@ -217,7 +217,7 @@ def test_named_text_is_full_and_edit_keeps_name_rules():
     assert m.entries[0].text == "r1: x^2+y^2=1" and m.entries[0].parsed.source == "x^2+y^2=1"
     m.replace(0, "r1:y=sin(x)")                          # re-saving a row under its own name is fine
     assert m.entries[0].text == "r1: y=sin(x)"
-    with pytest.raises(FormulaError, match="already used"):
+    with pytest.raises(EquationError, match="already used"):
         m.replace(1, "r1: y = x")                        # but another row can't take it
     m.replace(1, "r2: y = x")
     m.replace(0, "y = x^2")                              # dropping the name frees it
@@ -227,14 +227,40 @@ def test_named_text_is_full_and_edit_keeps_name_rules():
 
 def test_named_save_load_round_trip(tmp_path):
     path = tmp_path / "f.json"
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.add("eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)")
     m.add("y = x")
-    m2 = FormulaManager(path)
+    m2 = EquationManager(path)
     m2.load()
     assert [e.text for e in m2.entries] == ["eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)", "y = x"]
     assert m2.entries[0].parsed.name == "eq4"
     # duplicate names in a hand-edited file: the second one is skipped
-    path.write_text('{"version":1,"formulas":[{"text":"a: x"},{"text":"a: y"},{"text":"b: y"}]}')
+    path.write_text('{"version":1,"equations":[{"text":"a: x"},{"text":"a: y"},{"text":"b: y"}]}')
     m2.load()
     assert [e.text for e in m2.entries] == ["a: x", "b: y"]
+
+
+# --- migration of the old save/formulas.json -----------------------------------------------------
+def test_old_formulas_json_migrates_to_equations_json(tmp_path):
+    import json
+    legacy = tmp_path / "formulas.json"
+    legacy.write_text(json.dumps({"version": 1, "formulas": [
+        {"text": "x^2", "enabled": True}, {"text": "eq1: y = sin(x)", "enabled": False}]}), encoding="utf-8")
+    new = tmp_path / "equations.json"
+    m = EquationManager(new)
+    m.load()
+    assert [e.text for e in m.entries] == ["x^2", "eq1: y = sin(x)"]
+    assert [e.enabled for e in m.entries] == [True, False]
+    assert new.exists() and legacy.exists()                       # the old file stays in place
+    data = json.loads(new.read_text(encoding="utf-8"))
+    assert "equations" in data and "formulas" not in data
+    legacy.write_text("{}", encoding="utf-8")                      # the new file wins from now on
+    m2 = EquationManager(new)
+    m2.load()
+    assert len(m2.entries) == 2
+
+
+def test_no_migration_without_legacy_file(tmp_path):
+    m = EquationManager(tmp_path / "equations.json")
+    m.load()
+    assert m.entries == [] and not (tmp_path / "equations.json").exists()

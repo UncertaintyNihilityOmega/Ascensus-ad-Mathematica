@@ -28,7 +28,7 @@ def build_stats(game) -> list[tuple[str, list[tuple[str, str]]]]:
     """[(group title, [(label, value), ...]), ...] for Run / Player / Enemies now / Equations.
 
     `game` needs: game_t, kills, bosses_killed, damage_dealt, equations_cast, upgrades, player, swarm,
-    spawner and formulas (a GameScene, or any object with those attributes).
+    spawner and equations (a GameScene, or any object with those attributes).
     """
     up, pl = game.upgrades, game.player
     hp, dmg, speed, interval = difficulty(game.game_t)
@@ -55,7 +55,7 @@ def build_stats(game) -> list[tuple[str, list[tuple[str, str]]]]:
                ("Spawn every", f"{interval:.2f} s"),
                ("Alive", str(_count(game.swarm))),
                ("Next boss in", mmss(next_boss_in(game.spawner.bosses_spawned, game.game_t)))]
-    equations = [("Active", f"{_count(game.formulas.active())} / {config.MAX_ACTIVE}"),
-                 ("Total", str(_count(game.formulas.entries))),
-                 ("Variables", str(_count(getattr(game.formulas, "variables", ()))))]
+    equations = [("Active", f"{_count(game.equations.active())} / {config.MAX_ACTIVE}"),
+                 ("Total", str(_count(game.equations.entries))),
+                 ("Variables", str(_count(getattr(game.equations, "variables", ()))))]
     return [("Run", run), ("Player", player), ("Enemies now", enemies), ("Equations", equations)]

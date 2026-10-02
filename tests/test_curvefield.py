@@ -6,13 +6,13 @@ import numpy as np
 from ascensus import config, view
 from ascensus.config import UNIT_PX
 from ascensus.curvefield import build_curve, render_curve
-from ascensus.mathparse import parse_formula
+from ascensus.mathparse import parse_equation
 
 W, H = view.W, view.H
 
 
 def curve(text, t=0.0, step=config.GRID_STEP):
-    return build_curve(parse_formula(text).func, t, step)
+    return build_curve(parse_equation(text).func, t, step)
 
 
 def math_pts(c):
@@ -96,8 +96,8 @@ def test_offscreen_curve_is_empty():
     assert c.points.shape == (0, 2)
 
 
-def test_t_formula_changes_with_t():
-    f = parse_formula("y = 2sin(x + t)").func
+def test_t_equation_changes_with_t():
+    f = parse_equation("y = 2sin(x + t)").func
     a = build_curve(f, 0.0, config.GRID_STEP_T)
     b = build_curve(f, 1.5, config.GRID_STEP_T)
     assert len(a.points) > 0 and not np.array_equal(a.hit_mask, b.hit_mask)

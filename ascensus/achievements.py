@@ -55,8 +55,8 @@ def _has_word(text: str, names: tuple[str, ...]) -> bool:
     return any(re.search(rf"(?<![a-z]){n}(?![a-z])", text) for n in names)
 
 
-def formula_features(parsed: Any) -> set[str]:
-    """Which achievement-relevant features a parsed formula uses. Tolerant of old/new ParsedFormula shapes:
+def equation_features(parsed: Any) -> set[str]:
+    """Which achievement-relevant features a parsed equation uses. Tolerant of old/new ParsedEquation shapes:
     uses `funcs` / `variables` when present and always also scans the source and expr text."""
     source = str(getattr(parsed, "source", "") or "").lower()
     expr = str(getattr(parsed, "expr", "") or "").lower()
@@ -126,7 +126,7 @@ class AchievementTracker:
         """Handle a game event; returns the achievements unlocked by it (also queued in `pending`)."""
         out: list[Achievement] = []
         if event == "cast":
-            for ach_id in sorted(formula_features(data.get("parsed"))):
+            for ach_id in sorted(equation_features(data.get("parsed"))):
                 self._unlock(ach_id, out)
         elif event == "kill":
             self.run_kills += 1

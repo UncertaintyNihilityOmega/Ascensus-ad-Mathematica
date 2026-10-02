@@ -132,8 +132,8 @@ def test_no_duplicate_top_level_defs():
 def test_color_picker_over_variables_picks_color():
     game = GameScene(seed=2, save_path=None)
     for text in ("a*x", "b*x", "c*x", "x^2", "x^3", "sin(x)", "cos(x)", "x"):
-        game.equations.add(text) if hasattr(game, "equations") else game.formulas.add(text)
-    mgr = getattr(game, "equations", None) or game.formulas
+        game.equations.add(text) if hasattr(game, "equations") else game.equations.add(text)
+    mgr = getattr(game, "equations", None) or game.equations
     sb = game.sidebar
     assert sb.var_rect() is not None
     hit = None
@@ -156,7 +156,7 @@ def test_color_picker_over_variables_picks_color():
 
 def test_picker_blocks_clicks_to_the_upgrade_panel_and_esc_closes():
     game = GameScene(seed=2, save_path=None)
-    mgr = getattr(game, "equations", None) or game.formulas
+    mgr = getattr(game, "equations", None) or game.equations
     mgr.add("x")
     game.sidebar.open_picker(0)
     xp_before = game.upgrades.xp if hasattr(game, "upgrades") else None

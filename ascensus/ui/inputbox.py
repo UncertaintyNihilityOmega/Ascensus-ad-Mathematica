@@ -1,4 +1,4 @@
-"""Formula text input: focus, cursor editing, error line and edit-mode label."""
+"""Equation text input: focus, cursor editing, error line and edit-mode label."""
 from __future__ import annotations
 
 import pygame
@@ -93,13 +93,13 @@ class InputBox:
         return (a, b) if a != b else None
 
     def _insert(self, chars: str) -> None:
-        """Replace the selection (if any) with chars, respecting MAX_FORMULA_LEN."""
+        """Replace the selection (if any) with chars, respecting MAX_EQUATION_LEN."""
         sel = self.selection()
         if sel:
             self.text = self.text[:sel[0]] + self.text[sel[1]:]
             self.cursor = sel[0]
         self.anchor = None
-        room = config.MAX_FORMULA_LEN - len(self.text)
+        room = config.MAX_EQUATION_LEN - len(self.text)
         chars = chars[:max(room, 0)]
         self.text = self.text[:self.cursor] + chars + self.text[self.cursor:]
         self.cursor += len(chars)

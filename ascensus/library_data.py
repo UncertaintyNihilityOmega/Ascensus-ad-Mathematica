@@ -73,12 +73,12 @@ _PARAGRAPHS: dict[str, list[tuple[str, list[str]]]] = {
             "You can leave out the *: 2x, 3sin(x), (x+1)(x-1), xy and 2pi all work.",
             "A function name must be followed by parentheses: sin(x), never sin x.",
         ]),
-        ("What a formula means", [
-            "No '=' and no y: the formula is y = expression, so x^2 draws y = x^2.",
-            "No '=' but a y: the formula means expression = 0.",
+        ("What an equation means", [
+            "No '=' and no y: the equation is y = expression, so x^2 draws y = x^2.",
+            "No '=' but a y: the equation means expression = 0.",
             "One '=': the curve is every point where the left side equals the right side,",
             "for example x = 2, 1 = x^2 + y^2 or tan(sqrt(x^2 + y^2)) = y / x.",
-            "The formula must contain x or y, and only one '=' is allowed.",
+            "The equation must contain x or y, and only one '=' is allowed.",
         ]),
         ("The variable t", [
             "t is game time in seconds, so y = 2sin(x + t) is a wave that travels.",
@@ -87,7 +87,7 @@ _PARAGRAPHS: dict[str, list[tuple[str, list[str]]]] = {
         ("Names", [
             "Start a line with name: to label it, for example  r1: x^2 + y^2 = 1.",
             "The name is only a label (up to 16 characters) and must be unique among your equations.",
-            "Edit loads the whole 'name: formula' text back into the box.",
+            "Edit loads the whole 'name: equation' text back into the box.",
         ]),
         ("Functions with several arguments", [
             "Separate the arguments with a comma: min(x, 2), root(3, x), log(2, x), atan2(y, x).",

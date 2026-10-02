@@ -9,8 +9,8 @@ import pygame
 from . import config, view
 from .curvefield import build_curve, render_curve
 from .enemies import Spawner, Swarm
-from .formulas import FormulaManager
-from .mathparse import FormulaError, parse_formula
+from .equations import EquationManager
+from .mathparse import EquationError, parse_equation
 from .achievements import AchievementTracker
 from .player import Player
 from .profile import Profile, get_profile
@@ -88,7 +88,7 @@ class MenuScene(Scene):
         self.on_resize()
         self.t = 0.0
         self.rebuild_timer = config.MENU_CURVE_REBUILD       # build on the first update
-        self.curve_func = parse_formula(config.MENU_CURVE).func
+        self.curve_func = parse_equation(config.MENU_CURVE).func
         self.curve_surf: pygame.Surface | None = None
 
     def on_resize(self) -> None:
@@ -225,11 +225,11 @@ class GameScene(Scene):
         self.player = Player()
         self.swarm = Swarm(self.rng)
         self.spawner = Spawner()
-        self.formulas = FormulaManager(save_path)
-        self.formulas.load()
-        self.formulas.store.listener = self.emit     # var_created / var_play -> achievements
+        self.equations = EquationManager(save_path)
+        self.equations.load()
+        self.equations.store.listener = self.emit     # var_created / var_play -> achievements
         self.input = InputBox()
-        self.sidebar = Sidebar(self.formulas, self.input)
+        self.sidebar = Sidebar(self.equations, self.input)
         self.game_t = 0.0
         self.kills = 0
         self.boss_banner = 0.0           # seconds left on the "BOSS INCOMING" banner
@@ -303,7 +303,7 @@ class GameScene(Scene):
         """Re-lay-out widgets, rebuild background surfaces and recompute every curve."""
         self.sidebar.on_resize()
         self.layout_bottom()
-        self.formulas.on_resize()
+        self.equations.on_resize()
         self.grid_lines, self.grid_labels = make_grid()
         self.dots = make_dot_surface()
         self._layout_pause()
@@ -400,14 +400,14 @@ class GameScene(Scene):
         draw_text(screen, text, config.TOAST_FONT, config.TOAST_BORDER, box.center, "center")
 
     def _submit(self) -> None:
-        """Add the typed formula (or replace the one being edited); show errors in the box."""
+        """Add the typed equation (or replace the one being edited); show errors in the box."""
         try:
             if self.input.edit_index is None:
-                parsed = self.formulas.add(self.input.text).parsed
+                parsed = self.equations.add(self.input.text).parsed
             else:
-                self.formulas.replace(self.input.edit_index, self.input.text)
-                parsed = self.formulas.entries[self.input.edit_index].parsed
-        except FormulaError as err:
+                self.equations.replace(self.input.edit_index, self.input.text)
+                parsed = self.equations.entries[self.input.edit_index].parsed
+        except EquationError as err:
             self.input.show_error(str(err))
             return
         self.input.clear()
@@ -435,7 +435,7 @@ class GameScene(Scene):
             self.swarm.spawn_boss(self.player.pos, self.game_t)
             self.boss_banner = config.BOSS_BANNER_TIME
         self.swarm.update(dt, self.player.pos)
-        killed = self.formulas.update(dt, self.game_t, self.swarm, self.player.pos,
+        killed = self.equations.update(dt, self.game_t, self.swarm, self.player.pos,
                                       self.upgrades.base_dmg, self.upgrades.cooldown)
         self.kills += killed
         for _ in range(killed):
@@ -447,7 +447,7 @@ class GameScene(Scene):
         self._auto_prev = self.upgrades.auto
         if self._auto_prev and not auto_was:
             self.emit("auto_on")
-        self.emit("tick", game_t=self.game_t, active_count=len(self.formulas.active()))
+        self.emit("tick", game_t=self.game_t, active_count=len(self.equations.active()))
         self.upgrades.add_xp(self.upgrades.kill_xp(self.swarm.last_removed_max_hp))
         self.swarm.last_removed_max_hp = 0.0
         while self.upgrades.auto and (stat := self.upgrades.cheapest_affordable()):
@@ -468,7 +468,7 @@ class GameScene(Scene):
                 pygame.draw.line(screen, color, p0, p1)
             for img, pos in self.grid_labels:
                 screen.blit(img, pos)
-        self.formulas.draw(screen)
+        self.equations.draw(screen)
         self.swarm.draw(screen, self.player.pos)
         self.player.draw(screen)
         self._draw_hud(screen)

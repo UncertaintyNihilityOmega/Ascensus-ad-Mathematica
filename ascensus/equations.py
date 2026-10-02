@@ -1,4 +1,4 @@
-"""FormulaEntry + FormulaManager: list ops, active set, queued layer, pulses, damage, rebuilds, save v2."""
+"""EquationEntry + EquationManager: list ops, active set, queued layer, pulses, damage, rebuilds, save v2."""
 from __future__ import annotations
 
 import json
@@ -10,16 +10,16 @@ import numpy as np
 from . import config, view
 from .curvefield import CurveData, build_curve, render_curve
 from .enemies import Swarm
-from .mathparse import FormulaError, ParsedFormula, parse_formula
+from .mathparse import EquationError, ParsedEquation, parse_equation
 from .variables import VariableStore
 
 
 @dataclass
-class FormulaEntry:
+class EquationEntry:
     text: str
     enabled: bool
     color: tuple[int, int, int]
-    parsed: ParsedFormula
+    parsed: ParsedEquation
     curve: CurveData | None = None
     surface: "object | None" = None          # pygame.Surface, built lazily in draw
     bbox: "object | None" = None             # pygame.Rect of the curve on screen (surface origin)
@@ -119,12 +119,36 @@ def _read_color(value) -> tuple[int, int, int] | None:
     return (r, g, b) if all(0 <= c <= 255 for c in (r, g, b)) else None
 
 
-class FormulaManager:
-    """Ordered list of formulas; the first MAX_ACTIVE enabled ones fire."""
+# --- migration of the pre-rename save (save/formulas.json, key "formulas") ----------------------
+LEGACY_SAVE_NAME = "formulas.json"
+LEGACY_KEY = "formulas"
+
+
+def migrate_legacy_save(new_path: Path) -> bool:
+    """One-time migration: if `new_path` is missing and a legacy formulas.json sits next to it, write
+    the equations.json equivalent (the old file stays in place). Returns True when it migrated."""
+    legacy = new_path.with_name(LEGACY_SAVE_NAME)
+    if new_path.exists() or legacy == new_path or not legacy.exists():
+        return False
+    try:
+        data = json.loads(legacy.read_text(encoding="utf-8"))
+        if LEGACY_KEY in data and "equations" not in data:
+            data["equations"] = data.pop(LEGACY_KEY)
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = new_path.with_name(new_path.name + ".tmp")
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        tmp.replace(new_path)
+        return True
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+class EquationManager:
+    """Ordered list of equations; the first MAX_ACTIVE enabled ones fire."""
 
     def __init__(self, save_path: Path | None = None) -> None:
         self.save_path = save_path
-        self.entries: list[FormulaEntry] = []
+        self.entries: list[EquationEntry] = []
         self._t = 0.0
         self._rr = 0
         self._frame = 0
@@ -150,28 +174,28 @@ class FormulaManager:
         e.surface, e.tiles, e.stale = None, None, None
         self.save()
 
-    def _check_name(self, parsed: ParsedFormula, skip: int | None = None) -> None:
+    def _check_name(self, parsed: ParsedEquation, skip: int | None = None) -> None:
         """Equation names are unique (case-insensitive); `skip` is a row being re-parsed."""
         if parsed.name is None:
             return
         low = parsed.name.lower()
         for j, e in enumerate(self.entries):
             if j != skip and e.parsed.name is not None and e.parsed.name.lower() == low:
-                raise FormulaError(f"Name '{parsed.name}' already used")
+                raise EquationError(f"Name '{parsed.name}' already used")
 
     @property
     def variables(self) -> dict:
         """{name: {"value", "playing"}} as saved."""
         return self.store.to_dict()
 
-    def _check_vars(self, parsed: ParsedFormula, skip: int | None = None) -> None:
+    def _check_vars(self, parsed: ParsedEquation, skip: int | None = None) -> None:
         """Raise when the variables of all equations (with `parsed` replacing row `skip`) exceed the limit."""
         used = set(parsed.variables)
         for j, e in enumerate(self.entries):
             if j != skip:
                 used |= e.parsed.variables
         if len(used) > config.MAX_VARIABLES:
-            raise FormulaError(f"Too many variables ({config.MAX_VARIABLES})")
+            raise EquationError(f"Too many variables ({config.MAX_VARIABLES})")
 
     def _sync_vars(self, quiet: bool = False) -> None:
         """Create the variables the equations use (disabled ones count) and drop the unused ones."""
@@ -180,7 +204,7 @@ class FormulaManager:
             used.extend(sorted(e.parsed.variables))
         self.store.sync(used, quiet)
 
-    def _rebuild(self, e: FormulaEntry, keep_surface: bool = False) -> None:
+    def _rebuild(self, e: EquationEntry, keep_surface: bool = False) -> None:
         step = config.GRID_STEP_T if (e.parsed.uses_t or e.var_dirty) else config.GRID_STEP
         e.var_dirty = False
         e.curve = build_curve(e.parsed.func, self._t, step, vars=self.store.values)
@@ -190,17 +214,17 @@ class FormulaManager:
             e.surface, e.tiles = None, None
 
     def _append(self, text: str, enabled: bool = True, color=None, build: bool = True,
-                sync: bool = True) -> FormulaEntry:
+                sync: bool = True) -> EquationEntry:
         """Parse and append; build=False leaves the curve for update() to build progressively.
 
         sync=False (loading) leaves the variable store alone; the loader syncs once at the end.
         """
         if len(self.entries) >= config.MAX_ROWS:
-            raise FormulaError(f"Sidebar full ({config.MAX_ROWS}) - delete one first")
-        parsed = parse_formula(text)
+            raise EquationError(f"Sidebar full ({config.MAX_ROWS}) - delete one first")
+        parsed = parse_equation(text)
         self._check_name(parsed)
         self._check_vars(parsed)
-        e = FormulaEntry(parsed.text, enabled, color or self._free_color(), parsed)
+        e = EquationEntry(parsed.text, enabled, color or self._free_color(), parsed)
         self.entries.append(e)
         if sync:
             self._sync_vars()
@@ -208,15 +232,15 @@ class FormulaManager:
             self._rebuild(e)
         return e
 
-    def add(self, text: str) -> FormulaEntry:
-        """Parse and append a formula; raises FormulaError on bad text or a full list."""
+    def add(self, text: str) -> EquationEntry:
+        """Parse and append an equation; raises EquationError on bad text or a full list."""
         e = self._append(text)
         self.save()
         return e
 
     def replace(self, i: int, text: str) -> None:
         """Re-parse row i in place, keeping its colour, position and on/off state."""
-        parsed = parse_formula(text)
+        parsed = parse_equation(text)
         self._check_name(parsed, skip=i)
         self._check_vars(parsed, skip=i)
         e = self.entries[i]
@@ -252,13 +276,13 @@ class FormulaManager:
 
     # --- persistence -----------------------------------------------------
     def save(self) -> None:
-        """Write {"version":2,"formulas":[{text,enabled,color}],"variables":{name:{value,playing}}}.
+        """Write {"version":2,"equations":[{text,enabled,color}],"variables":{name:{value,playing}}}.
 
         No-op without a save_path."""
         if self.save_path is None:
             return
         data = {"version": 2,
-                "formulas": [{"text": e.text, "enabled": e.enabled, "color": list(e.color)}
+                "equations": [{"text": e.text, "enabled": e.enabled, "color": list(e.color)}
                              for e in self.entries],
                 "variables": self.store.to_dict()}
         try:
@@ -276,16 +300,20 @@ class FormulaManager:
         """
         self.entries = []
         self.store.sync([], quiet=True)
-        if self.save_path is None or not self.save_path.exists():
+        if self.save_path is None:
+            return
+        if not self.save_path.exists():
+            migrate_legacy_save(self.save_path)
+        if not self.save_path.exists():
             return
         try:
             data = json.loads(self.save_path.read_text(encoding="utf-8"))
-            rows = data["formulas"]
+            rows = data["equations"] if "equations" in data else data[LEGACY_KEY]
             for row in rows:
                 try:
                     self._append(str(row["text"]), bool(row.get("enabled", True)),
                                  _read_color(row.get("color")), build=False, sync=False)
-                except (FormulaError, KeyError, TypeError, AttributeError):
+                except (EquationError, KeyError, TypeError, AttributeError):
                     continue
             self._sync_vars(quiet=True)
             self.store.load_values(data.get("variables"))
@@ -299,10 +327,10 @@ class FormulaManager:
                     self._rebuild(e)
 
     # --- state -----------------------------------------------------------
-    def active(self) -> list[FormulaEntry]:
+    def active(self) -> list[EquationEntry]:
         return [e for e in self.entries if e.enabled][:config.MAX_ACTIVE]
 
-    def status(self, e: FormulaEntry) -> str:
+    def status(self, e: EquationEntry) -> str:
         """'off' | 'queued' | 'offscreen' | 'active'."""
         if not e.enabled:
             return "off"
@@ -313,7 +341,7 @@ class FormulaManager:
         return "active"
 
     # --- per-frame -------------------------------------------------------
-    def _build_pending(self, active: list[FormulaEntry]) -> None:
+    def _build_pending(self, active: list[EquationEntry]) -> None:
         """Active entries without a curve build now; queued ones QUEUED_BUILD_PER_FRAME per frame."""
         for e in active:
             if e.curve is None:
@@ -326,11 +354,11 @@ class FormulaManager:
                 self._rebuild(e)
                 budget -= 1
 
-    def _is_dirty(self, e: FormulaEntry) -> bool:
+    def _is_dirty(self, e: EquationEntry) -> bool:
         """An active curve animates when it uses t or a variable that changed since its last build."""
         return e.parsed.uses_t or e.var_dirty
 
-    def _rebuild_dirty(self, active: list[FormulaEntry], dt: float) -> None:
+    def _rebuild_dirty(self, active: list[EquationEntry], dt: float) -> None:
         """Dirty active curves rebuild at most T_REBUILD_HZ each, REBUILDS_PER_FRAME per frame, round-robin."""
         due = 1.0 / config.T_REBUILD_HZ
         for e in active:
@@ -350,7 +378,7 @@ class FormulaManager:
 
     def update(self, dt: float, game_t: float, swarm: Swarm, player_pos: np.ndarray,
                base_dmg: float | None = None, cooldown: float | None = None) -> int:
-        """Rebuild one due t-curve, fire pulses on active formulas; returns enemies killed.
+        """Rebuild one due t-curve, fire pulses on active equations; returns enemies killed.
 
         base_dmg / cooldown are the upgrade stats (defaults: the config start values).
         The killed enemies' summed max hp is left in `swarm.last_removed_max_hp`.
@@ -381,7 +409,7 @@ class FormulaManager:
                                    player_pos)
         return swarm.remove_dead()
 
-    def _draw_queued_layer(self, screen, active: list[FormulaEntry]) -> None:
+    def _draw_queued_layer(self, screen, active: list[EquationEntry]) -> None:
         """Queued curves live in ONE surface, re-rendered at most once per QUEUED_LAYER_PERIOD when dirty."""
         act = {id(a) for a in active}
         queued = [e for e in self.entries

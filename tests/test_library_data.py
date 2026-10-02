@@ -5,7 +5,7 @@ import pytest
 from ascensus import library_data as lib
 from ascensus import mathparse
 from ascensus.curvefield import build_curve
-from ascensus.mathparse import parse_formula
+from ascensus.mathparse import parse_equation
 
 
 def test_every_function_and_alias_is_documented():
@@ -43,7 +43,7 @@ def test_controls_mention_every_key():
 
 @pytest.mark.parametrize("card", lib.FUNCTIONS, ids=lambda f: f["name"])
 def test_example_parses_uses_function_and_renders(card):
-    p = parse_formula(card["example"])
+    p = parse_equation(card["example"])
     assert p.funcs & ({card["name"]} | set(card["aliases"]) | {mathparse.ALIASES.get(card["name"], card["name"])}), \
         "the example does not use its own function"
     src = card["example"].lower()

@@ -19,7 +19,7 @@ class Variable:
 class VariableStore:
     """Ordered map name -> Variable.
 
-    The owner (FormulaManager) calls sync() with the names the equations use: unknown names are
+    The owner (EquationManager) calls sync() with the names the equations use: unknown names are
     created (value VAR_DEFAULT), unused ones removed. update(dt) advances the playing variables.
     `changed` collects the names whose value moved since the owner last called drain_changed().
     `listener(event, **data)` (if set) hears ("var_created", name=) and ("var_play", name=).

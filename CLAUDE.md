@@ -24,7 +24,7 @@ A Python prototype of a survival game where typed math curves are the weapons. T
 - From P6 on, window size comes only from `ascensus/view.py` (`view.W`, `view.H`), never from constants. Everything must survive `on_resize()`.
 - Perf budget (from P6 on): at 1920×1080 with 200 enemies, 6 active equations and 50 queued, average < 10 ms and p95 < 16 ms per frame, as reported by `tools/smoke.py`.
 - `mathparse.py` and `curvefield.build_curve` must not import pygame, so the tests stay headless.
-- The formula evaluator must use the AST whitelist plus `{"__builtins__": {}}` (ARCHITECTURE §2). Never use eval on raw user text.
+- The equation evaluator must use the AST whitelist plus `{"__builtins__": {}}` (ARCHITECTURE §2). Never use eval on raw user text.
 - `pygame.surfarray` arrays are indexed `[x, y]`; numpy grids from meshgrid are `[row=y, col=x]`. Convert carefully.
 - Use only the default font (`pygame.font.Font(None, size)`). Draw icons with primitives, not Unicode glyphs.
 - Keep the code plain and readable: type hints, short docstrings, no frameworks beyond pygame-ce and numpy.

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from ascensus import config
-from ascensus.mathparse import FormulaError, parse_formula
+from ascensus.mathparse import EquationError, parse_equation
 
 pytestmark = pytest.mark.filterwarnings("ignore::RuntimeWarning")
 
@@ -15,7 +15,7 @@ Q = np.array([[2.0, 3.0, 0.5, 1.5]])
 
 def val(expr, x=P, y=Q, **kw):
     """F for 'y = expr' is y - F = expr, so expr = y - F."""
-    return y - parse_formula("y = " + expr).func(x, y, **kw)
+    return y - parse_equation("y = " + expr).func(x, y, **kw)
 
 
 ONE_ARG_CASES = {
@@ -36,7 +36,7 @@ ONE_ARG_CASES = {
 def test_one_arg_function(name):
     arg = "x+1" if name == "acosh" else "x"
     assert np.allclose(val(f"{name}({arg})"), ONE_ARG_CASES[name](P), equal_nan=True)
-    assert parse_formula(f"y = {name}({arg})").funcs == {name}
+    assert parse_equation(f"y = {name}({arg})").funcs == {name}
 
 
 ALIAS_CASES = [("arcsin", "asin"), ("arccos", "acos"), ("arctan", "atan"), ("arcsec", "asec"),
@@ -48,7 +48,7 @@ ALIAS_CASES = [("arcsin", "asin"), ("arccos", "acos"), ("arctan", "atan"), ("arc
 @pytest.mark.parametrize("alias,canon", ALIAS_CASES)
 def test_aliases(alias, canon):
     arg = "x+1" if canon == "acosh" else "x"
-    pa, pc = parse_formula(f"y = {alias}({arg})"), parse_formula(f"y = {canon}({arg})")
+    pa, pc = parse_equation(f"y = {alias}({arg})"), parse_equation(f"y = {canon}({arg})")
     assert np.allclose(pa.func(P, Q), pc.func(P, Q), equal_nan=True)
     assert pa.funcs == {canon}
 
@@ -61,7 +61,7 @@ def test_two_arg_functions():
     assert np.allclose(val("atan2(y, x)"), np.arctan2(Q, P))
     assert np.allclose(val("arctan2(y, x)"), np.arctan2(Q, P))
     assert np.allclose(val("atan2(x, 2)"), np.arctan2(P, 2.0))
-    assert parse_formula("y = arctan2(y, x)").funcs == {"atan2"}
+    assert parse_equation("y = arctan2(y, x)").funcs == {"atan2"}
 
 
 def test_root():
@@ -88,110 +88,110 @@ def test_log_one_and_two_args():
     ("log()", "log takes 1 or 2 arguments"),
 ])
 def test_arity_errors(text, msg):
-    with pytest.raises(FormulaError, match=msg):
-        parse_formula("y = " + text)
+    with pytest.raises(EquationError, match=msg):
+        parse_equation("y = " + text)
 
 
 def test_comma_rules():
     for bad in ["y = (x, 1)", "y = x, 1", "y = max(,x)", "y = max(x,)", "y = max(x,,1)"]:
-        with pytest.raises(FormulaError):
-            parse_formula(bad)
+        with pytest.raises(EquationError):
+            parse_equation(bad)
     assert np.allclose(val("max(2x, 3y)"), np.maximum(2 * P, 3 * Q))     # no '*' next to commas
     assert np.allclose(val("max(x, y) min(x, y)"), np.maximum(P, Q) * np.minimum(P, Q))
 
 
 def test_variables():
-    pf = parse_formula("y = a x + b")
+    pf = parse_equation("y = a x + b")
     assert pf.variables == {"a", "b"} and not pf.uses_t
     assert np.allclose(pf.func(P, Q, 0.0, {"a": 2.0, "b": 3.0}), Q - (2 * P + 3))
     assert np.allclose(pf.func(P, Q, 0.0, {"a": 2.0}), Q - (2 * P + config.VAR_DEFAULT))  # b missing
     assert np.allclose(pf.func(P, Q), Q - (config.VAR_DEFAULT * P + config.VAR_DEFAULT))
-    assert parse_formula("y = x").variables == frozenset()
-    assert parse_formula("y = t x + e").variables == frozenset()     # t and e are not variables
+    assert parse_equation("y = x").variables == frozenset()
+    assert parse_equation("y = t x + e").variables == frozenset()     # t and e are not variables
     assert config.VAR_DEFAULT == 1.0
 
 
 def test_variable_default_is_read_at_use_time(monkeypatch):
-    pf = parse_formula("y = a x")
+    pf = parse_equation("y = a x")
     monkeypatch.setattr(config, "VAR_DEFAULT", 4.0)
     assert np.allclose(pf.func(P, Q), Q - 4.0 * P)
 
 
 def test_variable_subscripts_and_runs():
-    pf = parse_formula("y = a_1 x + b_12")
+    pf = parse_equation("y = a_1 x + b_12")
     assert pf.variables == {"a_1", "b_12"}
     assert np.allclose(pf.func(P, Q, 0.0, {"a_1": 2.0, "b_12": 1.0}), Q - (2 * P + 1))
-    pf = parse_formula("ab_1 y = x")
+    pf = parse_equation("ab_1 y = x")
     assert pf.variables == {"a", "b_1"}
     assert np.allclose(pf.func(P, Q, 0.0, {"a": 2.0, "b_1": 3.0}), 6 * Q - P)
-    assert parse_formula("y = a2 x").variables == {"a"}              # a2 is a * 2
-    assert parse_formula("y = sin(k x)").variables == {"k"}
+    assert parse_equation("y = a2 x").variables == {"a"}              # a2 is a * 2
+    assert parse_equation("y = sin(k x)").variables == {"k"}
     for bad in ["y = x_1", "y = t_2", "y = sin_1(x)", "y = pi_1 x"]:
-        with pytest.raises(FormulaError, match="subscript"):
-            parse_formula(bad)
+        with pytest.raises(EquationError, match="subscript"):
+            parse_equation(bad)
 
 
 def test_variable_needs_x_or_y():
-    with pytest.raises(FormulaError, match="needs x or y"):
-        parse_formula("a = b")
+    with pytest.raises(EquationError, match="needs x or y"):
+        parse_equation("a = b")
 
 
 def test_unknown_function_heuristic():
-    with pytest.raises(FormulaError,
+    with pytest.raises(EquationError,
                        match=r"Unknown function 'sni' \(for variables write s\*n\*i\(\.\.\.\)\)"):
-        parse_formula("y = sni(x)")
-    with pytest.raises(FormulaError, match="Unknown function 'foo'"):
-        parse_formula("foo(x)")
-    assert parse_formula("y = a(x+1)").variables == {"a"}           # one variable then '(': a * (x+1)
-    assert parse_formula("y = ab (x)").variables == {"a", "b"}      # a space: not directly followed
-    assert parse_formula("y = xsin(x)").funcs == {"sin"}
-    assert parse_formula("y = a*b(x)").variables == {"a", "b"}
+        parse_equation("y = sni(x)")
+    with pytest.raises(EquationError, match="Unknown function 'foo'"):
+        parse_equation("foo(x)")
+    assert parse_equation("y = a(x+1)").variables == {"a"}           # one variable then '(': a * (x+1)
+    assert parse_equation("y = ab (x)").variables == {"a", "b"}      # a space: not directly followed
+    assert parse_equation("y = xsin(x)").funcs == {"sin"}
+    assert parse_equation("y = a*b(x)").variables == {"a", "b"}
 
 
 def test_funcs_field():
-    pf = parse_formula("y = sin(x) + arcsin(x) + cos(ln(x)) + log(2, x)")
+    pf = parse_equation("y = sin(x) + arcsin(x) + cos(ln(x)) + log(2, x)")
     assert pf.funcs == {"sin", "asin", "cos", "ln", "log"}
-    assert parse_formula("x^2 + y^2 = 1").funcs == frozenset()
+    assert parse_equation("x^2 + y^2 = 1").funcs == frozenset()
 
 
 def test_limit_is_120_on_the_body():
-    assert config.MAX_FORMULA_LEN == 120
-    parse_formula("y=" + "x" * 118)                                           # exactly 120
-    with pytest.raises(FormulaError, match="too long"):
-        parse_formula("y=" + "x" * 119)
-    parse_formula("eq1: y=" + "x" * 118)                                      # the name is not counted
-    with pytest.raises(FormulaError, match="too long"):
-        parse_formula("eq1: y=" + "x" * 119)
+    assert config.MAX_EQUATION_LEN == 120
+    parse_equation("y=" + "x" * 118)                                           # exactly 120
+    with pytest.raises(EquationError, match="too long"):
+        parse_equation("y=" + "x" * 119)
+    parse_equation("eq1: y=" + "x" * 118)                                      # the name is not counted
+    with pytest.raises(EquationError, match="too long"):
+        parse_equation("eq1: y=" + "x" * 119)
 
 
 EQ4 = "eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)"
 
 
 def test_named_equations():
-    pf = parse_formula(EQ4)
+    pf = parse_equation(EQ4)
     assert pf.name == "eq4" and pf.source == "(x^(2)+y^(2))^(3)=4 x^(2) y^(2)"
     assert pf.text == EQ4 and not pf.uses_t and pf.variables == frozenset()
     assert np.allclose(pf.func(X, Y), (X**2 + Y**2) ** 3 - 4 * X**2 * Y**2)
-    pf = parse_formula("r1: x^2+y^2=1")
+    pf = parse_equation("r1: x^2+y^2=1")
     assert pf.name == "r1" and pf.source == "x^2+y^2=1" and pf.text == "r1: x^2+y^2=1"
     assert np.allclose(pf.func(X, Y), X**2 + Y**2 - 1)
 
 
 def test_name_syntax():
-    pf = parse_formula("  My_Curve2 :  y = x ")
+    pf = parse_equation("  My_Curve2 :  y = x ")
     assert pf.name == "My_Curve2" and pf.source == "y = x" and pf.text == "My_Curve2: y = x"
-    assert parse_formula("y = x").name is None and parse_formula("y = x").text == "y = x"
-    parse_formula("a234567890123456: y = x")                                  # 16 characters
-    with pytest.raises(FormulaError, match="Name too long"):
-        parse_formula("a2345678901234567: y = x")
+    assert parse_equation("y = x").name is None and parse_equation("y = x").text == "y = x"
+    parse_equation("a234567890123456: y = x")                                  # 16 characters
+    with pytest.raises(EquationError, match="Name too long"):
+        parse_equation("a2345678901234567: y = x")
     for bad in ["eq4:", "eq4:   ", "1ab: y = x", ": y = x", "eq 4: y = x", "eq4: y = x: 2"]:
-        with pytest.raises(FormulaError):
-            parse_formula(bad)
+        with pytest.raises(EquationError):
+            parse_equation(bad)
 
 
 def test_named_body_follows_all_normal_rules():
-    with pytest.raises(FormulaError, match="needs x or y"):
-        parse_formula("c: 2pi")
-    with pytest.raises(FormulaError, match="Only one"):
-        parse_formula("c: x==2")
+    with pytest.raises(EquationError, match="needs x or y"):
+        parse_equation("c: 2pi")
+    with pytest.raises(EquationError, match="Only one"):
+        parse_equation("c: x==2")
 

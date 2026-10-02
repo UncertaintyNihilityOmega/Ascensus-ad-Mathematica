@@ -9,7 +9,7 @@ from pathlib import Path
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 SAVE = Path(tempfile.gettempdir()) / f"ascensus_smoke_{os.getpid()}.json"      # per process: smokes may run concurrently
-os.environ["ASCENSUS_SAVE"] = str(SAVE)         # never touch the real save/formulas.json
+os.environ["ASCENSUS_SAVE"] = str(SAVE)         # never touch the real save/equations.json
 SAVE.unlink(missing_ok=True)
 os.environ["ASCENSUS_PROFILE"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_profile_game_{os.getpid()}.json")
 os.environ["ASCENSUS_SETTINGS"] = str(Path(tempfile.gettempdir()) / f"ascensus_smoke_settings_game_{os.getpid()}.json")
@@ -34,7 +34,7 @@ def key(scene, k):
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=k, mod=0, unicode=""))
 
 
-def type_formula(scene, screen, text):
+def type_equation(scene, screen, text):
     """Enter, type the text, Enter (the first Enter only focuses the box)."""
     key(scene, pygame.K_RETURN)
     assert scene.input.focused
@@ -48,12 +48,12 @@ def mouse(scene, kind, pos, button=1):
 
 
 def saved_texts():
-    return [r["text"] for r in json.loads(SAVE.read_text())["formulas"]]
+    return [r["text"] for r in json.loads(SAVE.read_text())["equations"]]
 
 
 def sidebar_phase(game, screen):
     """Toggle, drag row 3 -> 1, edit, delete, collapse/expand, all via synthetic mouse events."""
-    sb, fm = game.sidebar, game.formulas
+    sb, fm = game.sidebar, game.equations
     for text in ("x^2", "sin(x)", "cos(x)", "x = 2"):
         fm.add(text)
     base = [e.text for e in fm.entries]
@@ -107,7 +107,7 @@ def sidebar_phase(game, screen):
     game.draw(screen)
 
     # a fresh game start loads the saved list
-    assert [e.text for e in GameScene().formulas.entries] == [e.text for e in fm.entries]
+    assert [e.text for e in GameScene().equations.entries] == [e.text for e in fm.entries]
 
 
 def step(scene, screen):
@@ -129,7 +129,7 @@ def check_no_overlap(game) -> None:
 def boss_phase(screen) -> None:
     """A boss spawns on schedule (banner), is drawn, and ignores the max-alive cap."""
     game = GameScene(seed=9, save_path=None)
-    game.formulas.add("y = x")
+    game.equations.add("y = x")
     game.player.hp = 1e9
     game.game_t = config.BOSS_INTERVAL - 0.05
     for _ in range(6):
@@ -173,7 +173,7 @@ def upgrades_phase(screen) -> None:
     assert config.MAX_ACTIVE == 6 and game.show_fps          # FPS is on by default
 
     # a kill pays XP_PER_HP * max hp
-    game.formulas.add("x = 0")
+    game.equations.add("x = 0")
     game.swarm.spawn(game.player.pos, 0.0)
     game.swarm.pos[0] = game.player.pos + (0.0, 100.0)
     game.swarm.hp[0] = 1.0
@@ -226,16 +226,16 @@ def named_phase(screen) -> None:
     """Cast named equations by typing: bold name in the row, uniqueness error, Edit keeps the name."""
     game = GameScene(seed=9, save_path=None)
     eq4 = "eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)"
-    type_formula(game, screen, eq4)
-    fm = game.formulas
+    type_equation(game, screen, eq4)
+    fm = game.equations
     assert len(fm.entries) == 1 and fm.entries[0].text == eq4 and fm.entries[0].parsed.name == "eq4"
     assert len(fm.entries[0].curve.points) > 50
-    type_formula(game, screen, "eq4: y = x")                          # duplicate name: rejected
+    type_equation(game, screen, "eq4: y = x")                          # duplicate name: rejected
     assert game.input.error == "Name 'eq4' already used" and len(fm.entries) == 1
     key(game, pygame.K_ESCAPE)
     game.input.clear()
-    type_formula(game, screen, "r1: x^2+y^2=1")
-    type_formula(game, screen, "y = a x + sin(b_1 x)")                # variables default to 1.0
+    type_equation(game, screen, "r1: x^2+y^2=1")
+    type_equation(game, screen, "y = a x + sin(b_1 x)")                # variables default to 1.0
     assert [e.parsed.name for e in fm.entries] == ["eq4", "r1", None]
     assert fm.entries[2].parsed.variables == {"a", "b_1"} and len(fm.entries[2].curve.points) > 50
     for _ in range(30):
@@ -251,8 +251,8 @@ def variables_phase(screen) -> None:
     path.unlink(missing_ok=True)
     game = GameScene(seed=11, save_path=path)
     game.player.hp = 1e9
-    fm, sb, store = game.formulas, game.sidebar, game.formulas.store
-    type_formula(game, screen, "y = a*x")
+    fm, sb, store = game.equations, game.sidebar, game.equations.store
+    type_equation(game, screen, "y = a*x")
     assert store.names() == ["a"] and sb.var_rect() is not None and store.get("a").value == config.VAR_DEFAULT
     step(game, screen)
     # drag the slider to about 75% of its track -> value near 2.5, snapped to 0.01
@@ -297,10 +297,10 @@ def variables_phase(screen) -> None:
     assert saved == {"value": store.get("a").value, "playing": True}, saved
     fm.save()
     again = GameScene(seed=11, save_path=path)
-    a = again.formulas.store.get("a")
-    assert a.value == store.get("a").value and a.playing and len(again.formulas.entries[0].curve.points) > 50
-    again.formulas.delete(0)
-    assert again.formulas.store.names() == [] and again.sidebar.var_rect() is None
+    a = again.equations.store.get("a")
+    assert a.value == store.get("a").value and a.playing and len(again.equations.entries[0].curve.points) > 50
+    again.equations.delete(0)
+    assert again.equations.store.names() == [] and again.sidebar.var_rect() is None
     path.unlink(missing_ok=True)
 
 
@@ -308,7 +308,7 @@ def resize_phase(screen) -> None:
     """Change the window size mid-game: layout, surfaces and curves must follow the view."""
     game = GameScene(seed=8, save_path=None)
     for text in ("x = 2", "y = x", "y = 2sin(x + t)"):
-        game.formulas.add(text)
+        game.equations.add(text)
     w0, h0 = view.W, view.H
     w1, h1 = 1000, 900
     screen = pygame.display.set_mode((w1, h1))
@@ -320,8 +320,8 @@ def resize_phase(screen) -> None:
     ur = game.upgrade_panel.panel_rect
     assert ur.right == w1 - config.HUD_MARGIN and ur.bottom == h1 - config.HUD_MARGIN   # panel follows the corner
     assert all(e.curve.hit_mask.shape == (-(-h1 // config.HIT_CELL), -(-w1 // config.HIT_CELL))
-               for e in game.formulas.entries)
-    assert game.formulas.entries[1].curve.length_units > 10        # y = x is drawn (the old bug)
+               for e in game.equations.entries)
+    assert game.equations.entries[1].curve.length_units > 10        # y = x is drawn (the old bug)
     for _ in range(60):
         step(game, screen)
     menu = MenuScene()
@@ -350,10 +350,10 @@ def scale_phase(screen, w: int, h: int) -> None:
     """150 equations: progressive load, perf gates, wheel scroll, colour pick, drag in a scrolled list, reload."""
     save = Path(tempfile.gettempdir()) / "ascensus_smoke_150.json"
     texts = mix_equations(150)
-    save.write_text(json.dumps({"version": 2, "formulas": [{"text": t, "enabled": True} for t in texts],
+    save.write_text(json.dumps({"version": 2, "equations": [{"text": t, "enabled": True} for t in texts],
                                 "variables": {}}))
     game = GameScene(seed=11, save_path=save)
-    fm, sb = game.formulas, game.sidebar
+    fm, sb = game.equations, game.sidebar
     game.player.hp = 1e9
     assert len(fm.entries) == 150 and config.MAX_ROWS >= 150
     built = lambda: sum(e.curve is not None for e in fm.entries)    # noqa: E731
@@ -411,7 +411,7 @@ def scale_phase(screen, w: int, h: int) -> None:
     cell = sb._picker_cell(17)
     click(game, cell)
     assert sb.picker_idx is None and fm.entries[i].color == config.CURVE_PALETTE_20[17]
-    assert json.loads(save.read_text())["formulas"][i]["color"] == list(config.CURVE_PALETTE_20[17])
+    assert json.loads(save.read_text())["equations"][i]["color"] == list(config.CURVE_PALETTE_20[17])
     click(game, sb.rects(i)["swatch"])
     key(game, pygame.K_ESCAPE)
     assert sb.picker_idx is None and not game.paused
@@ -438,8 +438,8 @@ def scale_phase(screen, w: int, h: int) -> None:
 
     # reload: order, colours and count survive the round trip
     game2 = GameScene(seed=12, save_path=save)
-    assert [e.text for e in game2.formulas.entries] == [e.text for e in fm.entries]
-    assert [e.color for e in game2.formulas.entries] == [e.color for e in fm.entries]
+    assert [e.text for e in game2.equations.entries] == [e.text for e in fm.entries]
+    assert [e.color for e in game2.equations.entries] == [e.color for e in fm.entries]
     save.unlink(missing_ok=True)
 
 
@@ -474,8 +474,8 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
 
     # from pause: Stats / Settings / Library return to the SAME paused game
     game = GameScene(seed=7, save_path=None)
-    game.formulas.add("y = x")
-    game.formulas.add("x^2 + y^2 = 4")
+    game.equations.add("y = x")
+    game.equations.add("x^2 + y^2 = 4")
     for _ in range(120):
         step(game, screen)
     key(game, pygame.K_ESCAPE)
@@ -516,7 +516,7 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
 
     # change a setting from pause and check the effect: zoom rebuilds the grid and the curves
     game.paused = True
-    lines0, pts0 = len(game.grid_lines), len(game.formulas.entries[0].curve.points)
+    lines0, pts0 = len(game.grid_lines), len(game.equations.entries[0].curve.points)
     click(game, game.settings_btn.rect)
     page = game.next_scene
     step(page, screen)
@@ -529,7 +529,7 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
     assert page.next_scene is game
     step(game, screen)
     assert len(game.grid_lines) > lines0, "zoom change did not rebuild the grid"
-    assert game.formulas.entries[0].curve.length_units > 10 and len(game.formulas.entries[0].curve.points) != pts0
+    assert game.equations.entries[0].curve.length_units > 10 and len(game.equations.entries[0].curve.points) != pts0
     saved = json.loads(config.SETTINGS_PATH.read_text())["values"]
     assert saved == {"UNIT_PX": 40, "GRID_STEP": 4}
 
@@ -565,18 +565,18 @@ def run(w: int, h: int) -> None:
     game = menu.next_scene
     assert isinstance(game, GameScene)
 
-    # Game: type 3 formulas (one with t), then 1800 frames with the player circling
+    # Game: type 3 equations (one with t), then 1800 frames with the player circling
     game = GameScene(seed=3)
-    type_formula(game, screen, "sin x")                       # bad: error shown, text kept
+    type_equation(game, screen, "sin x")                       # bad: error shown, text kept
     assert game.input.error and game.input.text == "sin x" and game.input.focused
     assert game.time_scale() == config.TYPING_TIME_SCALE
     key(game, pygame.K_ESCAPE)
-    assert not game.input.focused and not game.paused and len(game.formulas.entries) == 0
+    assert not game.input.focused and not game.paused and len(game.equations.entries) == 0
     game.input.clear()
     for text in ("1 = x^2 + y^2", "x = 2", "y = 2sin(x + t)"):
-        type_formula(game, screen, text)
+        type_equation(game, screen, text)
         assert not game.input.focused and game.input.text == ""
-    assert [e.text for e in game.formulas.entries] == ["1 = x^2 + y^2", "x = 2", "y = 2sin(x + t)"]
+    assert [e.text for e in game.equations.entries] == ["1 = x^2 + y^2", "x = 2", "y = 2sin(x + t)"]
     assert game.time_scale() == 1.0
     times = []
     for i in range(1800):
@@ -589,7 +589,7 @@ def run(w: int, h: int) -> None:
         if i == 600:
             check_no_overlap(game)                              # after 10 s of play
     check_no_overlap(game)
-    assert game.kills > 0, "formulas killed nothing"
+    assert game.kills > 0, "equations killed nothing"
     print(f"play  : {np.mean(times):.2f} ms avg, p95 {np.percentile(times, 95):.2f}, "
           f"kills={game.kills}, enemies={len(game.swarm)}")
 
@@ -618,8 +618,8 @@ def run(w: int, h: int) -> None:
     click(game, game.menu_btn.rect)
     assert isinstance(game.next_scene, MenuScene)
 
-    # Perf: 200 enemies on screen, grid on. "spec" = one t-formula (DESIGN_V2 budget mix),
-    # "brutal" = two t-formulas plus the full-screen monster (extra stress, printed only at 1920).
+    # Perf: 200 enemies on screen, grid on. "spec" = one t-equation (DESIGN_V2 budget mix),
+    # "brutal" = two t-equations plus the full-screen monster (extra stress, printed only at 1920).
     spec = ("1 = x^2 + y^2", "tan(sqrt(x^2 + y^2)) = y / x", "y = 2sin(x + t)", "y = x")
     brutal = ("1 = x^2 + y^2", "tan(sqrt(x^2 + y^2)) = y / x", "y = 2sin(x + t)", "x^2 + y^2 = (t % 5)^2")
     for name, texts in (("spec", spec), ("brutal", brutal)):
@@ -627,7 +627,7 @@ def run(w: int, h: int) -> None:
         game.show_fps = True
         game.player.hp = 1e9
         for text in texts:
-            game.formulas.add(text)
+            game.equations.add(text)
         for _ in range(200):
             game.swarm.spawn(game.player.pos, 0.0)
         game.swarm.pos = game.player.pos + game.rng.uniform(-1, 1, (200, 2)) * (w / 2 - 40, h / 2 - 40)
@@ -642,7 +642,7 @@ def run(w: int, h: int) -> None:
             run_stats = (float(np.mean(times)), float(np.percentile(times, 95)))
             best = run_stats if best is None or run_stats[0] < best[0] else best
         avg, p95 = best
-        print(f"perf  : {name:6s} {avg:.2f} ms avg, {p95:.2f} ms p95 (200 enemies, 4 formulas)")
+        print(f"perf  : {name:6s} {avg:.2f} ms avg, {p95:.2f} ms p95 (200 enemies, 4 equations)")
         if (name == "spec") == (w > 1280):
             lim_avg, lim_p95 = PERF_LIMITS[1280 if w <= 1280 else 1920]
             assert avg < lim_avg and p95 < lim_p95, f"frame budget exceeded ({lim_avg}/{lim_p95} ms)"
@@ -736,7 +736,7 @@ def achievements_game_phase(screen) -> None:
     game.player.hp = 1e9
     game.direction_override = (0.0, 0.0)
     for text in ("y = sin(x + t)", "y = cos(x)", "y = tan(x)", "x^2 + y^2 = 9"):
-        type_formula(game, screen, text)
+        type_equation(game, screen, text)
     step(game, screen)
     assert game.toast is not None and game.toast[0].startswith("Achievement unlocked: ")
     toast_rect = pygame.Rect(view.W // 2 - 150, config.HUD_MARGIN + config.HUD_TIMER_FONT, 300, 60)

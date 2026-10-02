@@ -60,7 +60,7 @@ def fake_game(**over):
     base = dict(game_t=125.0, kills=12, bosses_killed=1, damage_dealt=1234.7, equations_cast=3,
                 upgrades=up, player=SimpleNamespace(hp=73.4, max_hp=110.0, dash_count=4),
                 swarm=[0] * 7, spawner=SimpleNamespace(bosses_spawned=0),
-                formulas=SimpleNamespace(active=lambda: [1, 2], entries=[1, 2, 3, 4], variables={"a": 1}))
+                equations=SimpleNamespace(active=lambda: [1, 2], entries=[1, 2, 3, 4], variables={"a": 1}))
     base.update(over)
     return SimpleNamespace(**base)
 
@@ -81,14 +81,14 @@ def test_build_stats_groups_and_values():
 
 def test_stats_on_a_real_game_and_counters():
     game = make_game()
-    game.formulas.add("x = 0")
+    game.equations.add("x = 0")
     game.input.text = "y = x"
     game._submit()
     assert game.equations_cast == 1
     game.swarm.spawn_boss(game.player.pos, 0.0)
     game.swarm.pos[0] = game.player.pos
     game.swarm.hp[0] = 5.0
-    mask = game.formulas.entries[0].curve.hit_mask
+    mask = game.equations.entries[0].curve.hit_mask
     mask[:] = True
     game.swarm.damage_where(mask, 100.0, game.player.pos)
     assert game.swarm.remove_dead() == 1

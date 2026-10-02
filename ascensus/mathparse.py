@@ -1,4 +1,4 @@
-"""Formula text -> ParsedFormula (numpy only, no pygame). See ARCHITECTURE section 2."""
+"""Equation text -> ParsedEquation (numpy only, no pygame). See ARCHITECTURE section 2."""
 from __future__ import annotations
 
 import ast
@@ -11,8 +11,8 @@ import numpy as np
 from . import config
 
 
-class FormulaError(ValueError):
-    """Raised for any bad formula; the message is shown to the player verbatim."""
+class EquationError(ValueError):
+    """Raised for any bad equation; the message is shown to the player verbatim."""
 
 
 def _recip(fn: Callable) -> Callable:
@@ -72,14 +72,14 @@ _REPLACEMENTS = (("^", "**"), ("×", "*"), ("÷", "/"), ("−", "-"), ("π", "pi
 
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod)
 _ALLOWED_UNARY = (ast.UAdd, ast.USub)
-_CANT_READ = "Can't read formula"
+_CANT_READ = "Can't read equation"
 _NAME_RE = r"^\s*([A-Za-z][A-Za-z0-9_]{{0,{n}}})\s*:\s*(.*)$"
 _NAME_LIKE_RE = re.compile(r"^\s*[A-Za-z][A-Za-z0-9_]*\s*:")
 
 
 @dataclass(frozen=True)
-class ParsedFormula:
-    """A validated formula: the curve is F(x, y, t) = 0 (variables default to VAR_DEFAULT)."""
+class ParsedEquation:
+    """A validated equation: the curve is F(x, y, t) = 0 (variables default to VAR_DEFAULT)."""
     source: str                    # the body, without any "name:" prefix
     expr: str
     uses_t: bool
@@ -101,7 +101,7 @@ def _tokenize(side: str) -> list[tuple[str, str]]:
     while pos < len(side):
         m = _TOKEN_RE.match(side, pos)
         if m is None:
-            raise FormulaError(f"Unexpected character '{side[pos]}'")
+            raise EquationError(f"Unexpected character '{side[pos]}'")
         pos = m.end()
         text = m.group()
         if text.isspace():
@@ -114,7 +114,7 @@ def _tokenize(side: str) -> list[tuple[str, str]]:
             if sub:                                  # a_1: the subscript belongs to the last letter
                 kind, last = run[-1]
                 if kind != "var" or last in VARS:
-                    raise FormulaError(f"'{last}' can't take a subscript")
+                    raise EquationError(f"'{last}' can't take a subscript")
                 run[-1] = (kind, f"{last}_{sub}")
             elif run[-1][1] in _DIGIT_FUNCS and side.startswith("2(", pos):
                 run[-1] = ("func", _DIGIT_FUNCS[run[-1][1]])      # log2( / atan2(
@@ -122,7 +122,7 @@ def _tokenize(side: str) -> list[tuple[str, str]]:
             elif side.startswith("(", pos) and not any(k == "func" for k, _ in run):
                 free = [n for k, n in run if k == "var" and n not in VARS]
                 if len(free) >= 2:
-                    raise FormulaError(f"Unknown function '{letters}' "
+                    raise EquationError(f"Unknown function '{letters}' "
                                        f"(for variables write {'*'.join(letters)}(...))")
             tokens.extend(run)
         elif text == "(":
@@ -163,7 +163,7 @@ def _insert_multiplication(tokens: list[tuple[str, str]]) -> list[tuple[str, str
     out: list[tuple[str, str]] = []
     for i, tok in enumerate(tokens):
         if tok[0] == "func" and (i + 1 >= len(tokens) or tokens[i + 1][0] != "lp"):
-            raise FormulaError("Use parentheses: sin(x)")
+            raise EquationError("Use parentheses: sin(x)")
         if out and out[-1][0] in _BEFORE_MUL and tok[0] in _AFTER_MUL:
             out.append(("op", "*"))
         out.append(tok)
@@ -173,7 +173,7 @@ def _insert_multiplication(tokens: list[tuple[str, str]]) -> list[tuple[str, str
 def _check_tree(tree: ast.AST) -> None:
     """Whitelist walk: only arithmetic, numbers, x/y/t/pi/e, variables and known functions."""
     if not isinstance(tree, ast.Expression):
-        raise FormulaError(_CANT_READ)
+        raise EquationError(_CANT_READ)
     call_funcs: set[int] = set()
     for node in ast.walk(tree):
         if isinstance(node, (ast.Expression, ast.Load, *_ALLOWED_BINOPS, *_ALLOWED_UNARY)):
@@ -191,12 +191,12 @@ def _check_tree(tree: ast.AST) -> None:
             arity = FUNC_ARITY[node.func.id]
             if len(node.args) not in arity:
                 n = " or ".join(str(a) for a in arity)
-                raise FormulaError(f"{node.func.id} takes {n} argument{'' if arity == (1,) else 's'}")
+                raise EquationError(f"{node.func.id} takes {n} argument{'' if arity == (1,) else 's'}")
             call_funcs.add(id(node.func))
             continue
         if isinstance(node, ast.Name) and id(node) in call_funcs:
             continue  # the func part of an allowed Call (ast.walk visits the Call first)
-        raise FormulaError(_CANT_READ)
+        raise EquationError(_CANT_READ)
 
 
 def _side_to_expr(side: str) -> tuple[str, set[str], set[str]]:
@@ -206,7 +206,7 @@ def _side_to_expr(side: str) -> tuple[str, set[str], set[str]]:
     try:
         tree = ast.parse(expr, mode="eval")
     except SyntaxError:
-        raise FormulaError(_CANT_READ) from None
+        raise EquationError(_CANT_READ) from None
     _check_tree(tree)
     return (expr, {text for kind, text in tokens if kind == "var"},
             {text for kind, text in tokens if kind == "func"})
@@ -219,31 +219,31 @@ class _Floatify(ast.NodeTransformer):
         return ast.copy_location(ast.Constant(float(node.value)), node)
 
 
-def parse_formula(text: str) -> ParsedFormula:
-    """Parse player text into a ParsedFormula, or raise FormulaError."""
+def parse_equation(text: str) -> ParsedEquation:
+    """Parse player text into a ParsedEquation, or raise EquationError."""
     source, name = text.strip(), None
     m = re.match(_NAME_RE.format(n=config.NAME_MAX_LEN - 1), source)
     if m:
         name, source = m.group(1), m.group(2).strip()
     elif _NAME_LIKE_RE.match(source):
-        raise FormulaError(f"Name too long (max {config.NAME_MAX_LEN} characters)")
-    if not source or len(source) > config.MAX_FORMULA_LEN:
-        raise FormulaError(f"Formula is empty / too long (max {config.MAX_FORMULA_LEN})")
+        raise EquationError(f"Name too long (max {config.NAME_MAX_LEN} characters)")
+    if not source or len(source) > config.MAX_EQUATION_LEN:
+        raise EquationError(f"Equation is empty / too long (max {config.MAX_EQUATION_LEN})")
     s = source.lower()
     for old, new in _REPLACEMENTS:
         s = s.replace(old, new)
 
     sides = s.split("=")
     if len(sides) > 2:
-        raise FormulaError("Only one '=' allowed")
+        raise EquationError("Only one '=' allowed")
     if any(not side.strip() for side in sides):
-        raise FormulaError("Missing expression on one side of '='")
+        raise EquationError("Missing expression on one side of '='")
 
     parts = [_side_to_expr(side) for side in sides]
     used: set[str] = set().union(*(p[1] for p in parts))
     funcs: set[str] = set().union(*(p[2] for p in parts))
     if not used & {"x", "y"}:
-        raise FormulaError("Formula needs x or y")
+        raise EquationError("Equation needs x or y")
 
     if len(parts) == 2:
         expr = f"({parts[0][0]})-({parts[1][0]})"
@@ -255,7 +255,7 @@ def parse_formula(text: str) -> ParsedFormula:
     tree = ast.parse(expr, mode="eval")
     _check_tree(tree)
     tree = ast.fix_missing_locations(_Floatify().visit(tree))
-    code = compile(tree, "<formula>", "eval")
+    code = compile(tree, "<equation>", "eval")
 
     variables = frozenset(used - VARS)
 
@@ -273,7 +273,7 @@ def parse_formula(text: str) -> ParsedFormula:
         probe = np.array([[-1.5, 0.5, 2.0]] * 3)
         func(probe, probe.T, 0.0, {v: 1.0 for v in variables})
     except Exception:
-        raise FormulaError("Can't evaluate formula") from None
+        raise EquationError("Can't evaluate equation") from None
 
-    return ParsedFormula(source=source, expr=expr, uses_t="t" in used, func=func, name=name,
+    return ParsedEquation(source=source, expr=expr, uses_t="t" in used, func=func, name=name,
                          funcs=frozenset(funcs), variables=variables)

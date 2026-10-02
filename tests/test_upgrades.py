@@ -4,7 +4,7 @@ import pytest
 
 from ascensus import config
 from ascensus.enemies import Swarm
-from ascensus.formulas import FormulaManager, pulse_damage
+from ascensus.equations import EquationManager, pulse_damage
 from ascensus.player import Player
 from ascensus.upgrades import Upgrades
 
@@ -94,7 +94,7 @@ def test_max_hp_buy_heals_and_caps():
 
 
 def test_pulse_period_is_the_cooldown_stat():
-    m = FormulaManager()
+    m = EquationManager()
     m.add("x = 0")
     sw = Swarm(np.random.default_rng(0))
     sw.spawn(np.zeros(2), 0.0)

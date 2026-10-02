@@ -65,9 +65,9 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 - **VARIABLES** (up to 200, appear automatically): slider -5..5, a value box (type any number),
   and a play button that ping-pongs the value.
 - Named equations: `eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)` shows `eq4` in bold. Names are unique labels.
-- Everything is saved to `save/formulas.json` after every change.
+- Everything is saved to `save/equations.json` after every change.
 
-## Formula syntax cheat-sheet
+## Equation syntax cheat-sheet
 
 - **Variables and constants:** `x`, `y`, `t` (seconds of game time), `pi` (or `π`), `e`. Any other
   single letter, or a letter with a subscript like `a_1`, is a **variable** that starts at 1.
@@ -83,7 +83,7 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
   - no `=` and no `y`: it is `y = expr`, so `x^2` draws a parabola;
   - no `=` but with `y`: the curve is `expr = 0`;
   - one `=`: the curve is `left = right`, e.g. `x = 2`, `1 = x^2 + y^2`, `y = x`.
-- A formula needs `x` or `y`; one `=` at most; max 120 characters (after the name); case is ignored.
+- An equation needs `x` or `y`; one `=` at most; max 120 characters (after the name); case is ignored.
 - Examples: `x^3`, `x = -4`, `y = a*sin(x + t)`, `x^2 + y^2 = (t % 5)^2`, `tan(sqrt(x^2 + y^2)) = y / x`.
 - Limits: `x^(1/3)` is undefined for negative x (use `cbrt(x)`), and curves that only touch zero
   without crossing it, like `(x-1)^2 = 0`, are not drawn.
@@ -102,7 +102,7 @@ Use `pygame-ce` (it is in `requirements.txt`); do not install plain `pygame` nex
 
 ## Files and saves
 
-`save/formulas.json` (equations, colours, variables), `save/settings.json`, `save/profile.json`
+`save/equations.json` (equations, colours, variables), `save/settings.json`, `save/profile.json`
 (best run, lifetime counters, achievements). Delete a file to reset it.
 
 ## License

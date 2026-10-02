@@ -9,7 +9,7 @@ import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
 from ascensus.enemies import Swarm  # noqa: E402
-from ascensus.formulas import FormulaManager  # noqa: E402
+from ascensus.equations import EquationManager  # noqa: E402
 from ascensus.ui import inputbox  # noqa: E402
 from ascensus.ui.inputbox import InputBox  # noqa: E402
 from ascensus.ui.sidebar import Sidebar  # noqa: E402
@@ -28,7 +28,7 @@ def _pg():
 
 def lazy_manager(n, path=None):
     """n rows with no curves built (cheap): enough for sidebar geometry tests."""
-    m = FormulaManager(path)
+    m = EquationManager(path)
     for k in range(n):
         m._append(f"y = x + {k}", build=False)
     return m
@@ -151,7 +151,7 @@ def test_drag_not_started_in_middle_zone_does_not_scroll():
 # --- colour picker -------------------------------------------------------
 def test_picker_pick_close_and_save(tmp_path):
     path = tmp_path / "f.json"
-    m = FormulaManager(path)
+    m = EquationManager(path)
     for t in ("x^2", "sin(x)", "x = 2"):
         m.add(t)
     sb = Sidebar(m, InputBox())
@@ -164,7 +164,7 @@ def test_picker_pick_close_and_save(tmp_path):
     assert len({tuple(sb._picker_cell(k).topleft) for k in range(20)}) == 20
     assert sb.handle_event(down(cell.center))
     assert m.entries[1].color == config.CURVE_PALETTE_20[13] and sb.picker_idx is None
-    assert json.loads(path.read_text())["formulas"][1]["color"] == list(config.CURVE_PALETTE_20[13])
+    assert json.loads(path.read_text())["equations"][1]["color"] == list(config.CURVE_PALETTE_20[13])
     # click outside closes without changing anything
     old = m.entries[2].color
     sb.handle_event(down(sb.rects(2)["swatch"].center))
@@ -192,7 +192,7 @@ def test_new_equations_take_first_unused_color_then_cycle():
 # --- save format ---------------------------------------------------------
 def test_save_v2_and_load_v1_v2(tmp_path):
     path = tmp_path / "f.json"
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.add("x^2")
     m.add("sin(x)")
     m.set_color(1, (1, 2, 3))
@@ -202,19 +202,19 @@ def test_save_v2_and_load_v1_v2(tmp_path):
     m.save()
     data = json.loads(path.read_text())
     assert data["version"] == 2 and data["variables"] == {"a": {"value": 2.5, "playing": False}}
-    assert data["formulas"][1] == {"text": "sin(x)", "enabled": True, "color": [1, 2, 3]}
-    m2 = FormulaManager(path)
+    assert data["equations"][1] == {"text": "sin(x)", "enabled": True, "color": [1, 2, 3]}
+    m2 = EquationManager(path)
     m2.load()
     assert [(e.text, e.enabled, e.color) for e in m2.entries[:2]] == [
         ("x^2", False, m.entries[0].color), ("sin(x)", True, (1, 2, 3))]
     assert m2.variables == data["variables"]
     # v1 files (no colour, no variables) still load, with fresh palette colours
-    path.write_text('{"version":1,"formulas":[{"text":"x^2","enabled":true},{"text":"x = 2","enabled":false}]}')
+    path.write_text('{"version":1,"equations":[{"text":"x^2","enabled":true},{"text":"x = 2","enabled":false}]}')
     m2.load()
     assert [(e.text, e.enabled) for e in m2.entries] == [("x^2", True), ("x = 2", False)]
     assert [e.color for e in m2.entries] == config.CURVE_PALETTE_20[:2] and m2.variables == {}
     # bad colours fall back to the palette
-    path.write_text('{"version":2,"formulas":[{"text":"x^2","color":[1,2]},{"text":"x = 2","color":[999,0,0]}]}')
+    path.write_text('{"version":2,"equations":[{"text":"x^2","color":[1,2]},{"text":"x = 2","color":[999,0,0]}]}')
     m2.load()
     assert [e.color for e in m2.entries] == config.CURVE_PALETTE_20[:2]
 
@@ -222,13 +222,13 @@ def test_save_v2_and_load_v1_v2(tmp_path):
 # --- queued layer and progressive load -------------------------------------
 def write_save(path, n):
     rows = [{"text": f"x = {k % 7 - 3}.{k % 9}", "enabled": True} for k in range(n)]
-    path.write_text(json.dumps({"version": 2, "formulas": rows, "variables": {}}))
+    path.write_text(json.dumps({"version": 2, "equations": rows, "variables": {}}))
 
 
 def test_progressive_load(tmp_path):
     path = tmp_path / "f.json"
     write_save(path, 20)
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.load()
     built = lambda: sum(e.curve is not None for e in m.entries)       # noqa: E731
     assert len(m.entries) == 20 and built() == config.MAX_ACTIVE      # only the active ones, at once
@@ -247,7 +247,7 @@ def test_progressive_load(tmp_path):
 def test_only_active_entries_own_surfaces_and_queued_layer_is_shared(tmp_path):
     path = tmp_path / "f.json"
     write_save(path, config.MAX_ACTIVE + 4)
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.load()
     sw = Swarm(np.random.default_rng(0))
     for _ in range(8):
@@ -285,7 +285,7 @@ def test_only_active_entries_own_surfaces_and_queued_layer_is_shared(tmp_path):
 
 
 def test_queued_entry_moving_into_active_gets_its_own_surface():
-    m = FormulaManager()
+    m = EquationManager()
     for k in range(config.MAX_ACTIVE + 1):
         m.add(f"x = {k - 3}.5")
     screen = pygame.Surface((view.W, view.H))
@@ -299,7 +299,7 @@ def test_queued_entry_moving_into_active_gets_its_own_surface():
 
 
 def test_rebuild_limits_two_per_frame_round_robin():
-    m = FormulaManager()
+    m = EquationManager()
     texts = [f"y = sin(x + t) + {k}" for k in range(5)]
     for t in texts:
         m.add(t)
@@ -322,7 +322,7 @@ def test_rebuild_limits_two_per_frame_round_robin():
 def test_on_resize_rebuilds_active_now_and_queued_progressively(tmp_path):
     path = tmp_path / "f.json"
     write_save(path, config.MAX_ACTIVE + 3)
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.load()
     sw = Swarm(np.random.default_rng(0))
     for _ in range(6):
@@ -414,13 +414,13 @@ def test_paste_cleans_whitespace_and_respects_max_length(monkeypatch):
     assert box.text == "a b c d"
     scrap.text = "x" * 500
     box.handle_event(keydown(pygame.K_v, CTRL))
-    assert len(box.text) == config.MAX_FORMULA_LEN
+    assert len(box.text) == config.MAX_EQUATION_LEN
     box.handle_event(keydown(pygame.K_a, CTRL))
     scrap.text = "z" * 500
     box.handle_event(keydown(pygame.K_v, CTRL))                # the selection is replaced; still capped
-    assert box.text == "z" * config.MAX_FORMULA_LEN
+    assert box.text == "z" * config.MAX_EQUATION_LEN
     typed(box, "q")                                            # full: typing is ignored
-    assert len(box.text) == config.MAX_FORMULA_LEN
+    assert len(box.text) == config.MAX_EQUATION_LEN
 
 
 def test_clipboard_failures_are_swallowed(monkeypatch):

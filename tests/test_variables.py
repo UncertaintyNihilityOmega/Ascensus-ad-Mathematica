@@ -9,8 +9,8 @@ import pytest  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
 from ascensus.enemies import Swarm  # noqa: E402
-from ascensus.formulas import FormulaManager  # noqa: E402
-from ascensus.mathparse import FormulaError  # noqa: E402
+from ascensus.equations import EquationManager  # noqa: E402
+from ascensus.mathparse import EquationError  # noqa: E402
 from ascensus.ui import sidebar as sidebar_mod  # noqa: E402
 from ascensus.ui import widgets  # noqa: E402
 from ascensus.ui.inputbox import InputBox  # noqa: E402
@@ -56,7 +56,7 @@ def tick(m, dt=0.016, t=0.0):
 
 # --- store semantics -----------------------------------------------------
 def test_create_remove_and_disabled_counts():
-    m = FormulaManager()
+    m = EquationManager()
     seen = []
     m.store.listener = lambda ev, **d: seen.append((ev, d["name"]))
     m.add("a*x")
@@ -74,7 +74,7 @@ def test_create_remove_and_disabled_counts():
 
 
 def test_value_survives_while_used_and_dies_with_it():
-    m = FormulaManager()
+    m = EquationManager()
     m.add("a*x")
     m.store.set_value("a", 3.5)
     m.add("y = a")
@@ -87,13 +87,13 @@ def test_value_survives_while_used_and_dies_with_it():
 
 def test_too_many_variables(monkeypatch):
     monkeypatch.setattr(config, "MAX_VARIABLES", 3)
-    m = FormulaManager()
+    m = EquationManager()
     m.add("y = a+b+c")
-    with pytest.raises(FormulaError, match=r"Too many variables \(3\)"):
+    with pytest.raises(EquationError, match=r"Too many variables \(3\)"):
         m.add("y = d")
     assert len(m.entries) == 1 and m.store.names() == ["a", "b", "c"]
     m.add("y = a")                                 # existing names are fine
-    with pytest.raises(FormulaError, match="Too many variables"):
+    with pytest.raises(EquationError, match="Too many variables"):
         m.replace(1, "y = d")                      # a is still used by row 0, d would be a 4th
     m.replace(0, "y = d + a")                      # frees b and c
     assert m.store.names() == ["a", "d"]
@@ -168,7 +168,7 @@ def test_play_event_only_when_starting():
 
 # --- dirty tracking ----------------------------------------------------------
 def test_dirty_only_for_equations_using_the_variable():
-    m = FormulaManager()
+    m = EquationManager()
     m.add("y = a x")
     m.add("y = b x")
     m.add("y = x")
@@ -187,7 +187,7 @@ def test_dirty_only_for_equations_using_the_variable():
 
 
 def test_curve_uses_variable_values_and_rate_limit():
-    m = FormulaManager()
+    m = EquationManager()
     m.add("y = a")                                     # horizontal line at y = a
     e = m.entries[0]
     ys0 = e.curve.points[:, 1].mean()
@@ -203,7 +203,7 @@ def test_curve_uses_variable_values_and_rate_limit():
 
 
 def test_queued_curves_are_not_animated():
-    m = FormulaManager()
+    m = EquationManager()
     for k in range(config.MAX_ACTIVE):
         m.add(f"y = x + {k}")
     m.add("y = a x")
@@ -217,7 +217,7 @@ def test_queued_curves_are_not_animated():
 
 
 def test_rebuilds_per_frame_budget():
-    m = FormulaManager()
+    m = EquationManager()
     for k in range(config.MAX_ACTIVE):
         m.add(f"y = a x + {k}")
     m.store.set_value("a", 2.0)
@@ -232,7 +232,7 @@ def test_rebuilds_per_frame_budget():
 # --- save round trip ---------------------------------------------------------
 def test_save_round_trip_values_and_playing(tmp_path):
     path = tmp_path / "f.json"
-    m = FormulaManager(path)
+    m = EquationManager(path)
     m.add("y = a x + b")
     m.store.set_value("a", -2.25)
     m.store.set_value("b", 17.5)
@@ -242,7 +242,7 @@ def test_save_round_trip_values_and_playing(tmp_path):
     assert data["variables"] == {"a": {"value": -2.25, "playing": False},
                                  "b": {"value": 17.5, "playing": True}}
     seen = []
-    m2 = FormulaManager(path)
+    m2 = EquationManager(path)
     m2.store.listener = lambda ev, **d: seen.append(ev)
     m2.load()
     assert m2.store.names() == ["a", "b"]
@@ -250,11 +250,11 @@ def test_save_round_trip_values_and_playing(tmp_path):
     assert m2.store.get("b").value == 17.5 and m2.store.get("b").playing
     assert m2.entries[0].curve is not None and seen == []         # loading is silent
     # v1 file: variables get the default
-    path.write_text('{"version":1,"formulas":[{"text":"a x","enabled":true}]}')
+    path.write_text('{"version":1,"equations":[{"text":"a x","enabled":true}]}')
     m2.load()
     assert m2.store.get("a").value == config.VAR_DEFAULT
     # junk: saved variables nobody uses vanish, malformed values are ignored
-    path.write_text(json.dumps({"version": 2, "formulas": [{"text": "a x"}],
+    path.write_text(json.dumps({"version": 2, "equations": [{"text": "a x"}],
                                 "variables": {"zz": {"value": 3}, "a": {"value": "oops"}}}))
     m2.load()
     assert m2.store.names() == ["a"] and m2.store.get("a").value == config.VAR_DEFAULT
@@ -262,7 +262,7 @@ def test_save_round_trip_values_and_playing(tmp_path):
 
 # --- sidebar rows ------------------------------------------------------------
 def make_sidebar(*texts):
-    m = FormulaManager()
+    m = EquationManager()
     for t in texts:
         m.add(t)
     return m, Sidebar(m, InputBox())
@@ -346,7 +346,7 @@ def test_editing_variable_removed_mid_edit():
 
 
 def test_variable_wheel_scroll_is_independent():
-    m = FormulaManager()
+    m = EquationManager()
     for i in range(30):
         m._append(f"y = a_{i} + x", build=False)
     sb = Sidebar(m, InputBox())

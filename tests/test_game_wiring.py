@@ -81,7 +81,7 @@ def test_tan_monster_and_full_circle_through_the_scene():
 
 def test_kill_boss_kill_upgrade_dash_and_tick_events():
     sc = make()
-    sc.formulas.update = lambda *a, **k: 2                   # two enemies die this frame
+    sc.equations.update = lambda *a, **k: 2                   # two enemies die this frame
     sc.swarm.last_removed_bosses = 1
     sc.update(0.016)
     assert sc.profile.is_unlocked("first_blood") and sc.profile.is_unlocked("giant_slayer")
@@ -100,7 +100,7 @@ def test_kill_boss_kill_upgrade_dash_and_tick_events():
 def test_full_house_with_six_active_equations():
     sc = make()
     for i in range(6):
-        sc.formulas.add(f"y = x + {i}")
+        sc.equations.add(f"y = x + {i}")
     sc.update(0.016)
     assert sc.profile.is_unlocked("full_house")
 
@@ -128,5 +128,5 @@ def test_variable_events_reach_the_tracker():
     sc = make()
     cast(sc, "y = a sin(x)")
     assert sc.profile.is_unlocked("variable_star") and not sc.profile.is_unlocked("autoplay")
-    sc.formulas.store.toggle_play("a")
+    sc.equations.store.toggle_play("a")
     assert sc.profile.is_unlocked("autoplay")

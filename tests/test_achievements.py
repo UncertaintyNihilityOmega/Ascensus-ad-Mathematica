@@ -1,4 +1,4 @@
-"""One test per achievement (tiny fake ParsedFormula) plus persistence through the profile."""
+"""One test per achievement (tiny fake ParsedEquation) plus persistence through the profile."""
 from types import SimpleNamespace
 
 import pytest

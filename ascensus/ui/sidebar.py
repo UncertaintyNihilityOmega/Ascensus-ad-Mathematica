@@ -1,10 +1,10 @@
-"""Collapsible formula sidebar: rows, on/off switch, Edit, Del, drag reorder."""
+"""Collapsible equation sidebar: rows, on/off switch, Edit, Del, drag reorder."""
 from __future__ import annotations
 
 import pygame
 
 from .. import config, view
-from ..formulas import FormulaManager
+from ..equations import EquationManager
 from .inputbox import InputBox
 from .widgets import NumberField, Slider, draw_icon, draw_text, fmt_number, get_font
 
@@ -14,7 +14,7 @@ TAGS = {"queued": "queued", "off": "off", "offscreen": "off-screen"}
 class Sidebar:
     """Left panel. handle_event returns True when the event was consumed."""
 
-    def __init__(self, manager: FormulaManager, input_box: InputBox) -> None:
+    def __init__(self, manager: EquationManager, input_box: InputBox) -> None:
         self.manager = manager
         self.input = input_box
         self.collapsed = False
