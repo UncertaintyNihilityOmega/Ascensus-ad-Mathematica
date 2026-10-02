@@ -1,7 +1,11 @@
 """Window setup (full screen / square resizable window) and the main loop."""
 from __future__ import annotations
 
-import pygame
+import os
+
+os.environ.setdefault("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0")   # stay visible behind export/import dialogs
+
+import pygame  # noqa: E402
 
 from . import config, display, settings, view
 from .display import set_display          # noqa: F401  (kept importable from here)

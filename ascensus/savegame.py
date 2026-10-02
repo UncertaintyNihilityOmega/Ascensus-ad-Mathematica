@@ -6,6 +6,7 @@ current list (written to the game's equations file).
 """
 from __future__ import annotations
 
+import base64
 import json
 import math
 import time
@@ -20,6 +21,43 @@ from .curvefield import render_curve
 
 AUTO = "autosave"                          # the slot key of the autosave (the others are 1..SAVE_SLOTS)
 _REQUIRED = ("game_t", "kills", "player", "swarm", "spawner", "upgrades", "equations", "variables")
+EXPORT_FORMAT = "ascensus-save"            # the "format" field of an exported .ascensus file
+EXPORT_VERSION = 1
+EXPORT_SUFFIX = ".ascensus"
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+
+
+def is_save(data: object) -> bool:
+    """True when `data` looks like a save dict this version can restore."""
+    try:
+        if (isinstance(data, dict) and data.get("version") == config.SAVE_VERSION
+                and all(k in data for k in _REQUIRED)):
+            float(data["game_t"]), int(data["kills"])
+            return True
+    except (TypeError, ValueError):
+        pass
+    return False
+
+
+def read_export(path: Path | str) -> tuple[dict, bytes | None]:
+    """(save dict, thumbnail PNG bytes or None) of an exported .ascensus file; ValueError when it is not one."""
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError) as err:
+        raise ValueError("not a readable save file") from err
+    if not isinstance(payload, dict) or payload.get("format") != EXPORT_FORMAT:
+        raise ValueError("not an Ascensus save file")
+    if payload.get("version") != EXPORT_VERSION or not is_save(payload.get("save")):
+        raise ValueError("unsupported or damaged save file")
+    png = None
+    if payload.get("thumbnail"):
+        try:
+            png = base64.b64decode(payload["thumbnail"], validate=True)
+        except (ValueError, TypeError):
+            png = None
+        if png is not None and not png.startswith(_PNG_MAGIC):
+            png = None
+    return payload["save"], png
 
 
 # --- snapshot / restore ------------------------------------------------------------------------------
@@ -174,13 +212,9 @@ class SlotStore:
         """The save dict of a slot (for restore()), or None when missing, unreadable or not a save."""
         try:
             data = json.loads(self.json_path(slot).read_text(encoding="utf-8"))
-            if (isinstance(data, dict) and data.get("version") == config.SAVE_VERSION
-                    and all(k in data for k in _REQUIRED)):
-                float(data["game_t"]), int(data["kills"])
-                return data
         except (OSError, ValueError, TypeError):
-            pass
-        return None
+            return None
+        return data if is_save(data) else None
 
     def info(self, slot: int | str) -> SlotInfo | None:
         """Summary of a slot, or None when it is empty or corrupt."""
@@ -231,6 +265,43 @@ class SlotStore:
                 path.unlink(missing_ok=True)
             except OSError:
                 pass
+
+    # -- export / import --------------------------------------------------------------------------------
+    def export_slot(self, slot: int | str, path: Path | str) -> bool:
+        """Write a slot (and its thumbnail) as one portable .ascensus file; False when empty or not written."""
+        data = self.load(slot)
+        if data is None:
+            return False
+        thumb = self.thumb_path(slot)
+        try:
+            png = base64.b64encode(thumb.read_bytes()).decode("ascii") if thumb.exists() else None
+            payload = {"format": EXPORT_FORMAT, "version": EXPORT_VERSION, "save": data, "thumbnail": png}
+            path = Path(path)
+            tmp = path.with_name(path.name + ".tmp")
+            tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+            tmp.replace(path)
+            return True
+        except OSError:
+            return False
+
+    def import_into(self, slot: int | str, path: Path | str) -> bool:
+        """Copy an exported .ascensus file into any slot (replacing it); ValueError when the file is not a
+        save, False when the slot could not be written."""
+        data, png = read_export(path)
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+            target = self.json_path(slot)
+            tmp = target.with_name(target.name + ".tmp")
+            tmp.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+            tmp.replace(target)
+            thumb = self.thumb_path(slot)
+            if png is not None:
+                thumb.write_bytes(png)
+            else:
+                thumb.unlink(missing_ok=True)
+            return True
+        except OSError:
+            return False
 
     # -- the autosave -----------------------------------------------------------------------------------
     def autosave(self, game) -> bool:

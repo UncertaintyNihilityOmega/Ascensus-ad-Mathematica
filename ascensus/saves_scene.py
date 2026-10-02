@@ -1,8 +1,9 @@
-"""The Saves page: a grid of slot cards (thumbnail, run time, date, kills, Save / Delete).
+"""The Saves page: a grid of slot cards (thumbnail, run time, date, kills, Save / Export / Import / Delete).
 
 Opened from the main menu (game=None: loading only) or from Pause (game given: Save is enabled and loading
 asks first because the current run is lost). `back` is a zero-argument callable returning the Scene the Back
-button leads to. Loading puts the restored GameScene into `next_scene`.
+button leads to. Loading puts the restored GameScene into `next_scene`. Export writes a slot to a portable
+.ascensus file; Import copies such a file into any slot (asking first when the slot is not empty).
 """
 from __future__ import annotations
 
@@ -12,9 +13,12 @@ from typing import Callable
 import pygame
 
 from . import config, view
-from .savegame import SlotInfo, SlotStore, restore
+from .achievements import AchievementTracker
+from .profile import get_profile
+from .savegame import SlotInfo, SlotStore, read_export, restore
 from .scenes import Scene
 from .stats import mmss
+from .ui import filedialog
 from .ui.widgets import Button, draw_text
 
 ASPECT = config.THUMB_SIZE[0] / config.THUMB_SIZE[1]
@@ -60,7 +64,8 @@ class SavesScene(Scene):
         self._images: dict[int, pygame.Surface | None] = {}        # slot -> thumbnail png (loaded lazily)
         self._scaled: dict[tuple[int, int, int], pygame.Surface] = {}
         self.armed: tuple[int, float] | None = None                # (slot, seconds left) Delete awaiting 2nd click
-        self.dialog: tuple[str, int] | None = None                 # ("load" | "overwrite", slot)
+        self.dialog: tuple[str, int] | None = None                 # ("load" | "overwrite" | "import", slot)
+        self._import_path: Path | None = None                       # the file an "import" dialog is about
         self.note: tuple[str, bool, float] | None = None           # (text, is_error, seconds left)
         self.cards: list[pygame.Rect] = []
         self.dialog_rects: dict[str, pygame.Rect] = {}
@@ -104,6 +109,67 @@ class SavesScene(Scene):
         self.next_scene = scene
         return True
 
+    def _achieve(self, event: str) -> str:
+        """Feed export / import to the achievements; returns ' - Achievement unlocked: ...' or ''."""
+        tracker = getattr(self.game, "tracker", None) if self.game is not None else None
+        if tracker is None:
+            tracker = AchievementTracker(get_profile())
+        unlocked = tracker.on(event)
+        return f" - Achievement unlocked: {unlocked[0].name}" if unlocked else ""
+
+    def export_slot(self, slot: int) -> bool:
+        """Ask where to save, then write the slot as one .ascensus file."""
+        info = self.infos[slot - 1]
+        if info is None:
+            return False
+        t = int(info.game_t)
+        try:
+            path = filedialog.ask_save_path(f"Ascensus-slot{slot}-{t // 60}m{t % 60:02d}s.ascensus")
+        except filedialog.FileDialogError as err:
+            self._say(str(err), True)
+            return False
+        if path is None:
+            return False
+        ok = self.store.export_slot(slot, path)
+        if ok:
+            self._say(f"Exported slot {slot} to {path.name}" + self._achieve("export"))
+        else:
+            self._say(f"Could not export slot {slot}", True)
+        return ok
+
+    def pick_import(self, slot: int) -> bool:
+        """Ask for a .ascensus file and import it into `slot` (a filled slot asks to confirm first)."""
+        try:
+            path = filedialog.ask_open_path()
+        except filedialog.FileDialogError as err:
+            self._say(str(err), True)
+            return False
+        if path is None:
+            return False
+        try:
+            read_export(path)
+        except ValueError as err:
+            self._say(f"Not imported: {err}", True)
+            return False
+        if self.infos[slot - 1] is not None:
+            self._import_path, self.dialog = path, ("import", slot)
+            return False
+        return self.import_slot(slot, path)
+
+    def import_slot(self, slot: int, path: Path) -> bool:
+        """Copy the file into the slot (already confirmed)."""
+        try:
+            ok = self.store.import_into(slot, path)
+        except ValueError as err:
+            self._say(f"Not imported: {err}", True)
+            return False
+        self.refresh()
+        if ok:
+            self._say(f"Imported {path.name} into slot {slot}" + self._achieve("import"))
+        else:
+            self._say(f"Could not write slot {slot}", True)
+        return ok
+
     def leave(self) -> None:
         self.next_scene = self.back()
 
@@ -135,11 +201,11 @@ class SavesScene(Scene):
         tw, th = (area.w, int(area.w / ASPECT)) if area.w / ASPECT <= area.h else (int(area.h * ASPECT), area.h)
         thumb = pygame.Rect(0, 0, max(tw, 1), max(th, 1))
         thumb.center = area.center
-        half = (card.w - 3 * pad) // 2
+        names = ("save", "export", "import", "delete")
+        bw = (card.w - (len(names) + 1) * pad) // len(names)
         y = card.bottom - pad - bh
-        return {"card": card, "thumb": thumb,
-                "save": pygame.Rect(card.x + pad, y, half, bh),
-                "delete": pygame.Rect(card.right - pad - half, y, half, bh)}
+        buttons = {name: pygame.Rect(card.x + pad + k * (bw + pad), y, bw, bh) for k, name in enumerate(names)}
+        return {"card": card, "thumb": thumb, **buttons}
 
     # -- events --------------------------------------------------------------------------------------
     def handle_event(self, e: pygame.event.Event) -> None:
@@ -164,6 +230,12 @@ class SavesScene(Scene):
                 else:
                     self.dialog = ("overwrite", slot)
                 return
+            if parts["export"].collidepoint(e.pos) and info is not None:
+                self.export_slot(slot)
+                return
+            if parts["import"].collidepoint(e.pos):
+                self.pick_import(slot)
+                return
             if parts["delete"].collidepoint(e.pos) and info is not None:
                 if armed == slot:
                     self.delete_slot(slot)
@@ -184,7 +256,12 @@ class SavesScene(Scene):
         elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
             if self.dialog_rects["ok"].collidepoint(e.pos):
                 self.dialog = None
-                self.save_slot(slot) if kind == "overwrite" else self.load_slot(slot)
+                if kind == "overwrite":
+                    self.save_slot(slot)
+                elif kind == "import" and self._import_path is not None:
+                    self.import_slot(slot, self._import_path)
+                else:
+                    self.load_slot(slot)
             elif self.dialog_rects["cancel"].collidepoint(e.pos):
                 self.dialog = None
 
@@ -261,6 +338,8 @@ class SavesScene(Scene):
                         min_size=config.MIN_TEXT_SIZE)
         enabled = self.game is not None
         _draw_button(screen, parts["save"], "Save", enabled)
+        _draw_button(screen, parts["export"], "Export", info is not None)
+        _draw_button(screen, parts["import"], "Import", True)
         armed = self.armed is not None and self.armed[0] == slot
         _draw_button(screen, parts["delete"], "Sure?" if armed else "Delete", info is not None, armed)
 
@@ -274,6 +353,8 @@ class SavesScene(Scene):
         pygame.draw.rect(screen, config.ACCENT_COLOR, box, width=2, border_radius=10)
         if kind == "load":
             head, body, ok = f"Load slot {slot}?", "Current run will be lost", "Load"
+        elif kind == "import":
+            head, body, ok = f"Import into slot {slot}?", "The saved run will be replaced", "Import"
         else:
             head, body, ok = f"Overwrite slot {slot}?", "The saved run will be replaced", "Overwrite"
         w = box.w - 24
