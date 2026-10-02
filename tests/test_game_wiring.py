@@ -71,11 +71,11 @@ def test_toast_keeps_counting_while_paused():
     assert sc.toast is None
 
 
-def test_tan_monster_and_full_circle_through_the_scene():
+def test_ocean_and_full_circle_through_the_scene():
     sc = make()
-    cast(sc, "tan(sqrt(x^2+y^2)) = y/x")
+    cast(sc, "y/x = tan(sqrt(x^2+y^2)*a)")
     cast(sc, "x^(2) + y^2 = 4")
-    for ach in ("tangent", "rooted", "tan_monster", "full_circle"):
+    for ach in ("tangent", "rooted", "ocean", "full_circle"):
         assert sc.profile.is_unlocked(ach), ach
 
 

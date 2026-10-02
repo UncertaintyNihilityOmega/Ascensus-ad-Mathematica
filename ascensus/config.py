@@ -278,6 +278,11 @@ ACH_CENTURION_KILLS = 100
 ACH_SURVIVOR_TIME = 300.0
 ACH_MARATHON_TIME = 900.0
 ACH_DASH_COUNT = 100
+ACH_ETERNITY_TIME = 3600.0
+ACH_SPEED_DEMON_TIME = 60.0    # game seconds at 3x speed in one run
+ACH_UNTOUCHABLE_TIME = 120.0   # game seconds without taking damage
+ACH_MATHEMATICIAN = 50
+ACH_RAINBOW = 6
 
 # Widgets (Tabs, Slider, NumberField, ScrollArea, IconButton)
 TAB_FONT = 26

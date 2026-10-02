@@ -102,6 +102,8 @@ def restore(data: dict, profile=None):
     except (KeyError, TypeError, ValueError, IndexError, AttributeError) as err:
         raise ValueError(f"corrupt save: {err}") from err
     game.equations.apply_data({"equations": data["equations"], "variables": data["variables"]})
+    game.last_hit_t = game.game_t                       # Untouchable counts from the moment of loading
+    game.check_equations()                              # equations typed before a save still count
     return game
 
 

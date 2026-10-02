@@ -284,6 +284,7 @@ class GameScene(Scene):
         self.sidebar = Sidebar(self.equations, self.input)
         self.sidebar.on_delete = self._equation_deleted
         self.game_t = 0.0
+        self.last_hit_t = 0.0            # game_t of the last damage taken (Untouchable)
         self.kills = 0
         self.boss_banner = 0.0           # seconds left on the "BOSS INCOMING" banner
         self.paused = False
@@ -444,6 +445,7 @@ class GameScene(Scene):
         self.undo_toast.hide()
         if entry is None:
             return False
+        self.emit("undo")
         ei = self.input.edit_index
         if ei is not None and self.equations.entries.index(entry) <= ei:
             self.input.edit_index = ei + 1           # the equation being edited moved down one row
@@ -473,6 +475,11 @@ class GameScene(Scene):
             self.player.raise_max_hp(config.UPG_HP_STEP)
         self.emit("upgrade", stat=stat)
         return True
+
+    def check_equations(self) -> None:
+        """Equation achievements for every equation already in the list (a loaded / continued run)."""
+        for e in self.equations.entries:
+            self.emit("cast", parsed=e.parsed)
 
     def emit(self, event: str, **data) -> None:
         """Forward a game event to the achievement tracker (no-op without one)."""
@@ -546,6 +553,7 @@ class GameScene(Scene):
         self.player.update(dt, direction, face)
         # contact uses last frame's resolved positions; knockback only when the hit lands
         if self.player.take_damage(self.swarm.contact_damage(self.player.pos, config.PLAYER_RADIUS)):
+            self.last_hit_t = self.game_t
             self.swarm.knockback(self.player.pos, config.PLAYER_RADIUS)
         for _ in range(self.spawner.update(dt, self.game_t)):
             self.swarm.spawn(self.player.pos, self.game_t)
@@ -565,7 +573,10 @@ class GameScene(Scene):
         self._auto_prev = self.upgrades.auto
         if self._auto_prev and not auto_was:
             self.emit("auto_on")
-        self.emit("tick", game_t=self.game_t, active_count=len(self.equations.active()))
+        active = self.equations.active()
+        self.emit("tick", game_t=self.game_t, active_count=len(active), speed=self.speed,
+                  since_hit=self.game_t - self.last_hit_t, active_colors=[e.color for e in active],
+                  equation_count=len(self.equations.entries))
         self.upgrades.add_xp(self.upgrades.kill_xp(self.swarm.last_removed_max_hp))
         self.swarm.last_removed_max_hp = 0.0
         while self.upgrades.auto and (stat := self.upgrades.cheapest_affordable()):

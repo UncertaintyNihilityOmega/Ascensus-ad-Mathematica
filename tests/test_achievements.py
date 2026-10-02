@@ -4,7 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from ascensus import config
-from ascensus.achievements import ACHIEVEMENTS, BY_ID, AchievementTracker
+from ascensus.achievements import ACHIEVEMENTS, BY_ID, EQUATION_PATTERNS, TOTAL, AchievementTracker
+from ascensus.mathparse import parse_equation
 from ascensus.profile import Profile
 
 
@@ -25,8 +26,9 @@ def cast(tr, source, expr=None, **kw):
     return ids(tr.on("cast", parsed=fake(source, expr, **kw)))
 
 
-def test_data_is_20_unique():
-    assert len(ACHIEVEMENTS) == 20 and len(BY_ID) == 20
+def test_data_is_40_unique():
+    assert len(ACHIEVEMENTS) == TOTAL == 40 and len(BY_ID) == 40 and TOTAL % 5 == 0
+    assert set(EQUATION_PATTERNS) <= set(BY_ID)
     assert all(a.name and a.desc for a in ACHIEVEMENTS)
 
 
@@ -93,11 +95,82 @@ def test_full_house():
     assert ids(tr.on("tick", game_t=1.1, active_count=6)) == {"full_house"}
 
 
-def test_tan_monster():
-    got = cast(new_tracker(), "tan( sqrt(x^2 + y^2) ) = y / x",
-               "(tan(sqrt(x**2+y**2)))-(y/x)")
-    assert {"tan_monster", "tangent", "rooted", "full_circle"} <= got
-    assert "tan_monster" not in cast(new_tracker(), "tan(x) = y / x", "(tan(x))-(y/x)")
+def real(tr, text):
+    """Cast a really parsed equation; returns the unlocked ids."""
+    return ids(tr.on("cast", parsed=parse_equation(text)))
+
+
+def test_ocean_needs_the_variable():
+    got = real(new_tracker(), "Ocean: y/x = tan(sqrt(x^2+y^2)*k)")
+    assert {"ocean", "tangent", "rooted", "full_circle"} <= got
+    assert "ocean" not in real(new_tracker(), "tan(sqrt(x^2+y^2)) = y/x")       # the old Tan Monster
+
+
+# the user's own spellings (names, other variable letters, swapped sides) and a near miss each
+EQUATION_CASES = {
+    "sakuna": ("Sakuna: 0= sin(x*a)*sin(y*a)", "sin(k x) sin(k y) = 0", "sin(x a) sin(y a) = 1"),
+    "cosmic": ("200= (x^5+y^5)^2", "(x^5+y^5)^2/200 = 1", "200= (b*x^5+y^5)^2"),
+    "lily": ("(x^(2)-abs(y)*6) (y^(2)-abs(x)*6)=0", "(y^2-6abs(x))(x^2-6abs(y)) = 0",
+             "(x^2-abs(y)*5)(y^2-abs(x)*5)=0"),
+    "cross0": ("Cross0: (abs(a) x^(2)-y^(2)) (x^(2)-abs(a) y^(2))=0", "(x^2-abs(q)y^2)(abs(q)x^2-y^2)=0",
+               "(a x^2-y^2)(x^2-a y^2)=0"),        # differs for negative a
+    "cross2": ("Cross2: (x-c y)^(-2)+(y-c x)^(-2)=10", "10 = (x-a y)^(-2)+(y-a x)^(-2)",
+               "(x-c y)^(-2)+(y-c x)^(-2)=9"),
+    "aliens": ("Aliens: 10*(x^2 - c*y)^2 * (y^2 - c*x)^2 = (x^2 - c*y)^2 + (y^2 - c*x)^2",
+               "10 (x^(2)-a y)^(2) (y^(2)-a x)^(2)=(x^(2)-a y)^(2)+(y^(2)-a x)^(2)",
+               "10 (x^2-y)^2 (y^2-x)^2=(x^2-y)^2+(y^2-x)^2"),
+    "circular": ("Circular: cos(x*2)+cos(y*2)=a*0.39", "cos(2y)+cos(2x) = 0.39b",
+                 "cos(x*2)+cos(y*2)=0.39"),
+    "fog": ("Fog: mod(x^2 + y^2, 2) = 0.5", "mod(x^2+y^2,2)-0.5=0", "mod(x^2+y^2,3)=0.5"),
+    "love_is_endless": ("Love: 1=x^(2)+(y-sqrt(abs(x)))^(2)", "x^2+(y-sqrt(abs(x)))^2 = 1",
+                        "1=x^2+(y-sqrt(abs(x)))^2+0.1"),
+    "heartbeat": ("(x^2+y^2-1)^3 = x^2 y^3", "x^2y^3 = (x^2+y^2-1)^3", "(x^2+y^2-1)^3 = x^3 y^2"),
+    "four_leaf": ("eq4: (x^(2)+y^(2))^(3)=4 x^(2) y^(2)", "(x^2+y^2)^3/4 = x^2y^2", "(x^2+y^2)^3=3x^2y^2"),
+    "infinity": ("(x^2+y^2)^2 = a(x^2-y^2)", "(x^2+y^2)^2 = k (x^2-y^2)", "(x^2+y^2)^2 = 3(x^2-y^2)"),
+    "ocean": ("Ocean: y/x = tan(sqrt(x^2+y^2)*a)", "tan(c sqrt(x^2+y^2)) = y/x", "y/x = tan(sqrt(x^2+y^2))"),
+}
+
+
+@pytest.mark.parametrize("ach_id", sorted(EQUATION_CASES))
+def test_equation_achievements(ach_id):
+    *hits, miss = EQUATION_CASES[ach_id]
+    for text in hits:
+        assert ach_id in real(new_tracker(), text), text
+    assert ach_id not in real(new_tracker(), miss), miss
+
+
+def test_speed_demon_counts_only_3x_time():
+    tr = new_tracker()
+    t = 0.0
+    for _ in range(100):                      # 100 s at 1x: nothing
+        t += 1 / 2
+        tr.on("tick", game_t=t, speed=1)
+    for _ in range(int(config.ACH_SPEED_DEMON_TIME * 2) - 2):
+        t += 1 / 2
+        assert "speed_demon" not in ids(tr.on("tick", game_t=t, speed=3))
+    t += 0.5                                  # 59.5 s at 3x
+    assert "speed_demon" not in ids(tr.on("tick", game_t=t, speed=3))
+    t += 0.5                                  # 60 s
+    assert "speed_demon" in ids(tr.on("tick", game_t=t, speed=3))
+
+
+def test_untouchable_eternity_mathematician_rainbow():
+    tr = new_tracker()
+    assert not ids(tr.on("tick", game_t=50.0, since_hit=config.ACH_UNTOUCHABLE_TIME - 1))
+    assert "untouchable" in ids(tr.on("tick", game_t=51.0, since_hit=config.ACH_UNTOUCHABLE_TIME))
+    assert "eternity" in ids(tr.on("tick", game_t=config.ACH_ETERNITY_TIME))
+    assert "mathematician" not in ids(tr.on("tick", equation_count=49))
+    assert "mathematician" in ids(tr.on("tick", equation_count=50))
+    same = [(1, 2, 3)] * 2 + [(4, 5, 6), (7, 8, 9), (1, 1, 1), (2, 2, 2)]
+    assert "rainbow" not in ids(tr.on("tick", active_colors=same))
+    assert "rainbow" not in ids(tr.on("tick", active_colors=[(k, 0, 0) for k in range(5)]))
+    assert "rainbow" in ids(tr.on("tick", active_colors=[(k, 0, 0) for k in range(6)]))
+
+
+def test_undo_export_import_events():
+    assert ids(new_tracker().on("undo")) == {"second_thoughts"}
+    assert ids(new_tracker().on("export")) == {"time_capsule"}
+    assert ids(new_tracker().on("import")) == {"homecoming"}
 
 
 def test_first_blood():
@@ -184,8 +257,14 @@ def test_every_achievement_has_a_trigger(ach):
     tr = new_tracker()
     tr.on("cast", parsed=fake("tan(sqrt(x^2+y^2))=y/x", "(tan(sqrt(x**2+y**2)))-(y/x)"))
     tr.on("cast", parsed=fake("y=sin(x)+cos(x)+ln(x)+asin(x)+sinh(x)+t", uses_t=True))
+    for text in EQUATION_PATTERNS.values():
+        tr.on("cast", parsed=parse_equation(text))
     tr.on("var_created"); tr.on("var_play"); tr.on("boss_kill"); tr.on("upgrade")
-    tr.on("tick", game_t=1000.0, active_count=6)
+    tr.on("undo"); tr.on("export"); tr.on("import")
+    for k in range(200):
+        tr.on("tick", game_t=k / 2, active_count=6, speed=3, since_hit=k, equation_count=50,
+              active_colors=[(c, 0, 0) for c in range(6)])
+    tr.on("tick", game_t=config.ACH_ETERNITY_TIME)
     for _ in range(config.ACH_CENTURION_KILLS):
         tr.on("kill")
     for _ in range(config.ACH_DASH_COUNT):

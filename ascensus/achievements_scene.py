@@ -1,4 +1,4 @@
-"""Achievements page: a 4x5 grid of cards (medal or grey padlock), name, description, date and n/20."""
+"""Achievements page: a scrolling grid of cards (medal or grey padlock), name, description, date and n/40."""
 from __future__ import annotations
 
 from typing import Callable
@@ -21,7 +21,7 @@ def card_model(profile: Profile) -> list[dict]:
 
 
 def counter_text(profile: Profile) -> str:
-    """'n/20' unlocked counter."""
+    """'n/40' unlocked counter."""
     return f"{sum(1 for a in ACHIEVEMENTS if profile.is_unlocked(a.id))}/{TOTAL}"
 
 

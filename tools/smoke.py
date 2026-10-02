@@ -17,6 +17,7 @@ import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 
 from ascensus import config, view  # noqa: E402
+from ascensus.achievements import TOTAL  # noqa: E402
 from ascensus.savegame import restore, snapshot  # noqa: E402
 from ascensus.scenes import QUIT, GameOverScene, GameScene, MenuScene  # noqa: E402
 
@@ -680,7 +681,7 @@ def icons_achievements_phase() -> None:
     tracker.on("kill")
     names = [a.name for a in iter(tracker.pop_toast, None)]
     assert names == ["Hello, Sine", "Time Lord", "First Blood"], names
-    assert AchievementTracker(Profile(path)).unlocked_count() == 3 and len(ACHIEVEMENTS) == 20
+    assert AchievementTracker(Profile(path)).unlocked_count() == 3 and len(ACHIEVEMENTS) == 40
     path.unlink(missing_ok=True)
     print("icons + achievements OK")
 
@@ -715,9 +716,9 @@ def pages_phase() -> None:
             assert has_color(screen, lib.area.rect, config.TEXT_COLOR)
         ach.draw(screen)
         assert has_color(screen, ach.area.rect, config.ACH_UNLOCKED_BORDER)
-        assert len(ach.rects) == 20 and ach.area.rect.w <= w
+        assert len(ach.rects) == TOTAL and ach.area.rect.w <= w
         if w == 1920:
-            assert ach.area.max_scroll == 0
+            assert len({r.x for r in ach.rects}) == config.ACH_COLS and ach.area.max_scroll > 0   # 40 cards scroll
     for scene in (lib, ach):
         key(scene, pygame.K_ESCAPE)
         assert scene.next_scene == "back"
