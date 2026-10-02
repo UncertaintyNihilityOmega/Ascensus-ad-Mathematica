@@ -19,11 +19,13 @@ class UpgradePanel:
         self.rects: dict[str, pygame.Rect] = {}
         self.on_resize()
 
-    def on_resize(self) -> None:
-        """Re-anchor to the bottom-right corner of the current view."""
+    def on_resize(self, bottom: int | None = None) -> None:
+        """Re-anchor to the right edge, with the lowest button's bottom at `bottom` (default: the view's
+        bottom margin; the game raises it when the panel has to stack above the input box)."""
         w, h, gap, m = config.UPG_PANEL_W, config.UPG_BTN_H, config.UPG_GAP, config.HUD_MARGIN
         names = (*STATS, "auto")
-        top = view.H - m - len(names) * h - (len(names) - 1) * gap
+        bottom = view.H - m if bottom is None else bottom
+        top = bottom - len(names) * h - (len(names) - 1) * gap
         self.rects = {n: pygame.Rect(view.W - m - w, top + i * (h + gap), w, h)
                       for i, n in enumerate(names)}
         self.panel_rect = self.rects[names[0]].unionall(list(self.rects.values()))
@@ -62,4 +64,5 @@ class UpgradePanel:
                 border = config.UPG_DISABLED_COLOR
             pygame.draw.rect(screen, border, r, width=2, border_radius=8)
             color = config.TEXT_COLOR if enabled else config.UPG_DISABLED_COLOR
-            draw_text(screen, label, config.UPG_FONT, color, r.center, "center")
+            draw_text(screen, label, config.UPG_FONT, color, r.center, "center", max_w=r.w - 12,
+                      min_size=config.UPG_MIN_FONT)

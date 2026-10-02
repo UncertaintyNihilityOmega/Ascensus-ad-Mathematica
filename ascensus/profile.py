@@ -119,21 +119,3 @@ def set_profile(profile: Profile | None) -> None:
     """Replace the shared profile (tests); None makes the next get_profile() reload from disk."""
     global _shared
     _shared = profile
-
-
-_shared: Profile | None = None
-
-
-def get_profile() -> Profile:
-    """The one Profile shared by the menu, stats, achievements and the game (loaded lazily from
-    config.PROFILE_PATH, which honours the ASCENSUS_PROFILE environment variable)."""
-    global _shared
-    if _shared is None:
-        _shared = Profile()
-    return _shared
-
-
-def set_profile(profile: Profile | None) -> None:
-    """Replace the shared profile (tests and smoke inject temporary ones; None reloads lazily)."""
-    global _shared
-    _shared = profile

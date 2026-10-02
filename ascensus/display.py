@@ -11,7 +11,16 @@ fullscreen: bool = True          # the mode the window is currently in
 def window_side() -> int:
     """Side of the square windowed mode: WINDOW_FRACTION of the desktop height."""
     dh = pygame.display.get_desktop_sizes()[0][1]
-    return max(int(dh * config.WINDOW_FRACTION), 200)
+    return max(int(dh * config.WINDOW_FRACTION), *config.WINDOW_MIN_SIZE)
+
+
+def set_minimum_size() -> bool:
+    """The window cannot be dragged smaller than config.WINDOW_MIN_SIZE (800x600). False if unsupported."""
+    try:
+        pygame.Window.from_display_module().minimum_size = tuple(config.WINDOW_MIN_SIZE)
+        return True
+    except (AttributeError, pygame.error, TypeError):
+        return False
 
 
 def set_display(full: bool) -> pygame.Surface:
@@ -27,6 +36,7 @@ def set_display(full: bool) -> pygame.Surface:
     else:
         side = window_side()
         screen = pygame.display.set_mode((side, side), pygame.RESIZABLE)
+        set_minimum_size()
     view.set_size(*screen.get_size())
     return screen
 

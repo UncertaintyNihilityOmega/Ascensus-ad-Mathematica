@@ -315,7 +315,7 @@ def resize_phase(screen) -> None:
     view.set_size(w1, h1)
     game.on_resize()
     assert game.grid_labels and max(l[2][0] for l in game.grid_lines) <= w1 and max(l[2][1] for l in game.grid_lines) <= h1
-    assert game.input.rect.centerx == w1 // 2 and game.input.rect.bottom == h1 - config.INPUT_BOTTOM_MARGIN
+    assert game.input.rect.bottom == h1 - config.INPUT_BOTTOM_MARGIN and not game.input.rect.colliderect(game.upgrade_panel.panel_rect)
     assert game.sidebar.panel_rect.height == h1
     ur = game.upgrade_panel.panel_rect
     assert ur.right == w1 - config.HUD_MARGIN and ur.bottom == h1 - config.HUD_MARGIN   # panel follows the corner
@@ -505,7 +505,7 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
         page.select_tab(name)
         step(page, scr1)
     key(page, pygame.K_ESCAPE)
-    assert page.next_scene is game and game.input.rect.centerx == w1 // 2      # the game re-laid itself out
+    assert page.next_scene is game  and game.input.rect.right <= w1 and game.input.rect.bottom == h1 - config.INPUT_BOTTOM_MARGIN      # the game re-laid itself out
     stats = StatsScene(game, lambda: game)
     stats.on_resize()
     step(stats, scr1)

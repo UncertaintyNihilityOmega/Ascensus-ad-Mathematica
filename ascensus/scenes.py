@@ -18,6 +18,7 @@ from .ui import icons
 from .ui.inputbox import InputBox
 from .ui.sidebar import Sidebar
 from .ui.upgrade_panel import UpgradePanel
+from .layout import game_layout
 from .ui.widgets import Button, draw_text, get_font
 from .upgrades import Upgrades
 
@@ -241,6 +242,8 @@ class GameScene(Scene):
         self.upgrades = Upgrades()                   # per-run XP and stats
         self._auto_prev = False                      # to emit auto_on when Auto is switched on
         self.upgrade_panel = UpgradePanel(self.upgrades, self.buy)
+        self._layout_collapsed = False
+        self.layout_bottom()
         self.direction_override: tuple[float, float] | None = None   # tests/smoke only
         self.grid_lines, self.grid_labels = make_grid()
         self.dots = make_dot_surface()
@@ -287,11 +290,19 @@ class GameScene(Scene):
             self._recorded = True
             self.profile.record_run(self.game_t, self.kills)
 
+    def layout_bottom(self) -> None:
+        """Place the input box and the upgrades panel so they never overlap (see layout.game_layout)."""
+        sb = self.sidebar
+        left = sb.tab_rect.right if sb.collapsed else sb.panel_rect.right
+        rect, bottom = game_layout(left, view.W, view.H)
+        self.input.rect = rect
+        self.upgrade_panel.on_resize(bottom)
+        self._layout_collapsed = sb.collapsed
+
     def on_resize(self) -> None:
         """Re-lay-out widgets, rebuild background surfaces and recompute every curve."""
-        self.input.on_resize()
         self.sidebar.on_resize()
-        self.upgrade_panel.on_resize()
+        self.layout_bottom()
         self.formulas.on_resize()
         self.grid_lines, self.grid_labels = make_grid()
         self.dots = make_dot_surface()
@@ -328,6 +339,9 @@ class GameScene(Scene):
             elif self.menu_btn.handle_event(e):
                 self.finish_run()
                 self.next_scene = MenuScene()
+            return
+        if self.sidebar.picker_idx is not None:       # the colour popup is modal
+            self.sidebar.handle_event(e)
             return
         if self.upgrade_panel.handle_event(e) or self.sidebar.handle_event(e):
             return
@@ -403,6 +417,8 @@ class GameScene(Scene):
     def update(self, real_dt: float) -> None:
         self.input.update(real_dt)
         self.sidebar.update(real_dt)
+        if self.sidebar.collapsed != self._layout_collapsed:       # collapsing frees / uses space
+            self.layout_bottom()
         self._update_toast(real_dt)
         if self.paused:
             return
@@ -458,6 +474,7 @@ class GameScene(Scene):
         self._draw_hud(screen)
         self.sidebar.draw(screen)
         self.input.draw(screen)
+        self.sidebar.draw_popups(screen)
         if self.paused:
             self._draw_pause(screen)
 

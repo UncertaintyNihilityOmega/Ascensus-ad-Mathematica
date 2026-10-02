@@ -445,7 +445,8 @@ def test_selection_is_drawn_and_reset_on_clear():
     box.draw(screen)
     px = screen.get_at((box.rect.left + config.INPUT_PAD + 3, box.rect.top + 10))
     assert px[:3] == config.INPUT_FILL                         # before the selection: plain fill
-    font = pygame.font.Font(None, config.INPUT_FONT)
+    from ascensus.ui.widgets import get_font
+    font = get_font(config.INPUT_FONT)
     x = box.rect.left + config.INPUT_PAD + font.size("a")[0] + 4
     assert screen.get_at((x, box.rect.top + 8))[:3] == config.INPUT_SELECT_COLOR
     box.clear()

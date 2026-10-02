@@ -78,7 +78,22 @@ class SettingsScene(Scene):
         self.tabs.selected = self.tab_names.index(name)
         self._tab_changed()
 
+    def _tab_to_next(self, key: str) -> None:
+        """Tab: apply the edit and start editing the next numeric row of this tab (wraps around)."""
+        keys = [s.key for s in self.rows() if s.key in self.fields]
+        f = self.fields[key]
+        if f._apply():
+            self.set_value(key, f.value)
+        else:
+            f._end()
+        if keys:
+            nxt = self.fields[keys[(keys.index(key) + 1) % len(keys)]] if key in keys else self.fields[keys[0]]
+            nxt.focus()
+
     def _tab_changed(self) -> None:
+        fk = self.focused_key()
+        if fk is not None and self.fields[fk]._apply():      # leaving the tab commits a valid edit
+            self.set_value(fk, self.fields[fk].value)
         for f in self.fields.values():
             f.focused = False
         self.area.set_content_height(len(self.rows()) * config.SET_ROW_H)
@@ -211,7 +226,9 @@ class SettingsScene(Scene):
         self._place()
         fk = self.focused_key()
         if fk is not None and e.type in (pygame.KEYDOWN, pygame.TEXTINPUT):
-            if self.fields[fk].handle_event(e):                # Enter: apply
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_TAB:
+                self._tab_to_next(fk)
+            elif self.fields[fk].handle_event(e):              # Enter: apply
                 self.set_value(fk, self.fields[fk].value)
             return                                             # Esc only cancels the edit
         if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
@@ -237,10 +254,11 @@ class SettingsScene(Scene):
 
     def _click(self, e: pygame.event.Event) -> None:
         inside = self.area.contains(e.pos)
-        for key, f in self.fields.items():
-            if f.focused or (inside and f.rect.collidepoint(e.pos)):
+        for s in self.rows():                    # only the visible tab's fields: hidden ones keep stale rects
+            f = self.fields.get(s.key)
+            if f is not None and (f.focused or (inside and f.rect.collidepoint(e.pos))):
                 if f.handle_event(e):
-                    self.set_value(key, f.value)
+                    self.set_value(s.key, f.value)
         if not inside:
             return
         for s in self.rows():
@@ -285,12 +303,12 @@ class SettingsScene(Scene):
         pygame.draw.line(screen, config.BUTTON_FILL, (row.left, row.bottom - 1), (row.right - 8, row.bottom - 1))
         ctrl_left = (r.get("switch") or r.get("cycle") or r["minus"]).left
         max_w = ctrl_left - row.left - 16
-        draw_text(screen, fit_text(s.label, config.SET_LABEL_FONT, max_w), config.SET_LABEL_FONT,
-                  config.TEXT_COLOR, (row.left + 4, row.top + 8))
+        draw_text(screen, s.label, config.SET_LABEL_FONT, config.TEXT_COLOR, (row.left + 4, row.top + 8),
+                  max_w=max_w, min_size=14)
         note = note_text(s)
         if note:
-            draw_text(screen, fit_text(note, config.SET_NOTE_FONT, max_w), config.SET_NOTE_FONT,
-                      config.DIM_TEXT_COLOR, (row.left + 4, row.top + 34))
+            draw_text(screen, note, config.SET_NOTE_FONT, config.DIM_TEXT_COLOR, (row.left + 4, row.top + 34),
+                      max_w=max_w, min_size=12)
         self.reset_btn[k].draw(screen)
         if s.kind == "bool":
             draw_switch(screen, r["switch"], bool(settings.get(k)))

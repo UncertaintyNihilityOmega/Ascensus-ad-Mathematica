@@ -30,7 +30,7 @@ def grid_layout(width: int, height: int, n: int = TOTAL) -> tuple[list[pygame.Re
 
     Cards share the available height equally, but never get shorter than ACH_CARD_MIN_H: when the
     window is too small the grid is taller than `height` and the page scrolls."""
-    cols, gap = config.ACH_COLS, config.ACH_GAP
+    cols, gap = (config.ACH_COLS if width >= config.ACH_WIDE_W else config.ACH_NARROW_COLS), config.ACH_GAP
     rows = -(-n // cols)
     w = max((width - (cols - 1) * gap) // cols, 60)
     h = max((height - (rows - 1) * gap) // rows, config.ACH_CARD_MIN_H)
@@ -96,14 +96,11 @@ class AchievementsScene(Scene):
         screen.blit(icons.medal(icon) if on else icons.padlock(icon), (r.x + pad, r.y + pad))
         x = r.x + pad + icon + pad
         name_color = config.TEXT_COLOR if on else config.DIM_TEXT_COLOR
-        name_lines = wrap_text(m["name"], config.ACH_NAME_FONT, r.right - pad - x)
-        size = config.ACH_NAME_FONT
-        while get_font(size).size(name_lines[0])[0] > r.right - pad - x and size > 16:
-            size -= 2                                    # a long name shrinks instead of overflowing
-        draw_text(screen, name_lines[0], size, name_color, (x, r.y + pad))
+        room = r.right - pad - x
+        draw_text(screen, m["name"], config.ACH_NAME_FONT, name_color, (x, r.y + pad), max_w=room, min_size=14)
         date = f"Unlocked {m['date']}" if on else "Locked"
         draw_text(screen, date, config.ACH_DATE_FONT, config.ACH_UNLOCKED_BORDER if on else config.DIM_TEXT_COLOR,
-                  (x, r.y + pad + line_height(config.ACH_NAME_FONT) + 2))
+                  (x, r.y + pad + line_height(config.ACH_NAME_FONT) + 2), max_w=room, min_size=12)
         y = r.y + pad + icon + 6
         for line in wrap_text(m["desc"], config.ACH_DESC_FONT, r.w - 2 * pad):
             draw_text(screen, line, config.ACH_DESC_FONT, config.TEXT_COLOR if on else config.DIM_TEXT_COLOR, (r.x + pad, y))

@@ -53,12 +53,13 @@ class StatsScene(Scene):
             if col == 0 and i:
                 row_y = y0 + self._group_h(self.groups[i - cols:i]) + m
             x = m + col * (cw + m)
-            draw_text(screen, title, config.STATS_HEAD_FONT, config.ACCENT_COLOR, (x, row_y))
+            draw_text(screen, title, config.STATS_HEAD_FONT, config.ACCENT_COLOR, (x, row_y), max_w=cw)
             pygame.draw.line(screen, config.BUTTON_BORDER, (x, row_y + 30), (x + cw, row_y + 30))
             for j, (label, value) in enumerate(rows):
                 y = row_y + 40 + j * lh
-                draw_text(screen, label, font, config.DIM_TEXT_COLOR, (x, y))
-                draw_text(screen, value, font, config.TEXT_COLOR, (x + cw, y), "topright")
+                draw_text(screen, label, font, config.DIM_TEXT_COLOR, (x, y), max_w=int(cw * 0.58), min_size=14)
+                draw_text(screen, value, font, config.TEXT_COLOR, (x + cw, y), "topright",
+                          max_w=int(cw * 0.4), min_size=14)
 
     @staticmethod
     def _group_h(groups) -> int:

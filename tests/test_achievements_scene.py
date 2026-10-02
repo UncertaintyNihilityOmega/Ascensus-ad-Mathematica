@@ -40,8 +40,8 @@ def test_card_model_and_counter():
 
 
 def test_grid_is_4_by_5_and_fits_when_tall_enough():
-    rects, h = grid_layout(1200, 640)
-    assert len(rects) == 20 and h <= 640
+    rects, h = grid_layout(1200, 700)
+    assert len(rects) == 20 and h <= 700
     assert len({r.x for r in rects}) == 4 and len({r.y for r in rects}) == 5
     for a in rects:
         assert sum(a.colliderect(b) for b in rects) == 1            # overlaps only itself
@@ -49,7 +49,7 @@ def test_grid_is_4_by_5_and_fits_when_tall_enough():
 
 
 def test_grid_scrolls_when_too_short():
-    rects, h = grid_layout(1000, 300)
+    rects, h = grid_layout(1200, 300)
     assert rects[0].h == config.ACH_CARD_MIN_H and h > 300
     assert h == rects[-1].bottom
 

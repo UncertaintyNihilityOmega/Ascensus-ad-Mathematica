@@ -298,19 +298,21 @@ class Sidebar:
         return True
 
     def handle_event(self, e: pygame.event.Event) -> bool:
-        if not self.collapsed:
-            done = self._handle_vars(e)
-            if done is not None:
-                return done
-        if self.picker_idx is not None:
+        if self.picker_idx is not None:                      # the colour popup is modal: it sees events first
             if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                 self.picker_idx = None
                 return True
             if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                 self._picker_click(e.pos)
                 return True
+            if e.type in (pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+                return True
             if e.type == pygame.MOUSEWHEEL:
                 self.picker_idx = None
+        if not self.collapsed:
+            done = self._handle_vars(e)
+            if done is not None:
+                return done
         if e.type == pygame.MOUSEWHEEL:
             pos = getattr(e, "pos", None) or pygame.mouse.get_pos()
             if self.collapsed or not self.eq_rect().collidepoint(pos):
@@ -343,7 +345,8 @@ class Sidebar:
         if i is None:
             return
         parts = self.rects(i)
-        if parts["swatch"].inflate(6, 6).collidepoint(pos):
+        if parts["swatch"].inflate(config.SWATCH_HIT - config.SIDEBAR_SWATCH,
+                                    config.SWATCH_HIT - config.SIDEBAR_SWATCH).collidepoint(pos):
             self.open_picker(i)
         elif parts["switch"].collidepoint(pos):
             self.manager.toggle(i)
@@ -422,8 +425,11 @@ class Sidebar:
         self._draw_scrollbar(screen, eq)
         screen.set_clip(old_clip)
         self._draw_variables(screen)
-        if self.picker_idx is not None:
-            self._draw_picker(screen, mouse)
+
+    def draw_popups(self, screen: pygame.Surface) -> None:
+        """The colour popup: the scene calls this LAST so it sits on top of everything."""
+        if self.picker_idx is not None and not self.collapsed:
+            self._draw_picker(screen, pygame.mouse.get_pos())
 
     def _draw_variables(self, screen: pygame.Surface) -> None:
         """VARIABLES section: title strip, then clipped rows (name, slider, value box, play/pause)."""
@@ -589,22 +595,18 @@ class Sidebar:
         pygame.draw.circle(screen, config.TEXT_COLOR, (kx, r.centery), kr)
 
 
-_bold_fonts: dict[int, pygame.font.Font] = {}
 _bold_cache: dict[tuple, pygame.Surface] = {}
 
 
 def _draw_bold(screen: pygame.Surface, text: str, size: int, color: tuple[int, ...],
                pos: tuple[int, int]) -> pygame.Rect:
-    """Draw bold default-font text with its midleft at pos; returns the drawn rect."""
+    """Draw bold built-in-font text with its midleft at pos; returns the drawn rect."""
     key = (text, size, tuple(color))
     img = _bold_cache.get(key)
     if img is None:
-        if size not in _bold_fonts:
-            _bold_fonts[size] = pygame.font.Font(None, size)
-            _bold_fonts[size].set_bold(True)
         if len(_bold_cache) >= config.TEXT_CACHE_MAX:
             _bold_cache.clear()
-        img = _bold_cache[key] = _bold_fonts[size].render(text, True, color)
+        img = _bold_cache[key] = get_font(size, bold=True).render(text, True, color)
     rect = img.get_rect(midleft=pos)
     screen.blit(img, rect)
     return rect

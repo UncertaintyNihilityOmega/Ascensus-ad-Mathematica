@@ -31,6 +31,13 @@ def set_app_identity() -> None:
         pass
 
 
+def take_next(scene: Scene) -> "Scene | str | None":
+    """Pop the scene's switch request. It must be cleared: a scene that is returned to later
+    (pause -> Settings -> Back gives the same GameScene) would otherwise switch away again at once."""
+    nxt, scene.next_scene = scene.next_scene, None
+    return nxt
+
+
 def main() -> None:
     pygame.init()
     pygame.display.set_caption(config.TITLE)
@@ -60,7 +67,7 @@ def main() -> None:
         screen = pygame.display.get_surface()   # a page may have switched the display mode
         scene.draw(screen)
         pygame.display.flip()
-        nxt = scene.next_scene
+        nxt = take_next(scene)
         if nxt == QUIT:
             running = False
         elif nxt is not None:

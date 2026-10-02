@@ -193,6 +193,8 @@ SWITCH_OFF_COLOR = (70, 76, 100)
 # Input box
 INPUT_SIZE = (560, 42)
 INPUT_BOTTOM_MARGIN = 20
+INPUT_MIN_W = 300               # the input box never gets narrower than this when side by side with the panel
+LAYOUT_GAP = 12                 # gap between the sidebar, input box and upgrades panel
 INPUT_ERROR_GAP = 18
 INPUT_PLACEHOLDER = "Type an equation, e.g. y = sin(x)   [Enter]"
 
@@ -309,7 +311,9 @@ LIB_PARA_GAP = 18
 ACH_COLS = 4
 ACH_ROWS = 5
 ACH_GAP = 12
-ACH_CARD_MIN_H = 104
+ACH_CARD_MIN_H = 120
+ACH_WIDE_W = 1100             # at least this wide: ACH_COLS columns, otherwise ACH_NARROW_COLS
+ACH_NARROW_COLS = 2
 ACH_PAD = 10
 ACH_ICON = 44
 ACH_NAME_FONT = 26
@@ -334,3 +338,9 @@ STATS_FONT = 24
 STATS_HEAD_FONT = 32
 STATS_LINE_H = 32
 STATS_WIDE_W = 1200              # at least this wide: four columns, otherwise two by two
+
+SWATCH_HIT = 22               # clickable size of a row's colour swatch (px)
+FONT_SCALE = 0.72              # freetype size = pygame.font pixel size * this (keeps the old text widths)
+MIN_TEXT_SIZE = 12            # draw_text never shrinks below this unless asked
+WINDOW_MIN_SIZE = (800, 600)  # smallest resizable window
+UPG_MIN_FONT = 14              # upgrade button labels shrink to this before being cut

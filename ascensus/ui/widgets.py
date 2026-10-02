@@ -1,33 +1,154 @@
-"""Font cache, text drawing and a simple Button (default pygame font only)."""
+"""Font cache (pygame.freetype), fitted text drawing and a simple Button (pygame's built-in font only)."""
 from __future__ import annotations
 
 import pygame
+import pygame.freetype
 
 from .. import config
 
-_fonts: dict[int, pygame.font.Font] = {}
+
+class Font:
+    """pygame.freetype wrapper with the small pygame.font API the game uses (size/render/get_height).
+
+    SDL_ttf spaces small text badly ("Pi xel s"); freetype draws the same built-in font correctly.
+    `size` keeps the old pygame.font pixel meaning (scaled by config.FONT_SCALE).
+    """
+
+    def __init__(self, size: int, bold: bool = False) -> None:
+        if not pygame.freetype.get_init():
+            pygame.freetype.init()
+        self.ft = pygame.freetype.Font(None, size * config.FONT_SCALE)
+        self.ft.strong = bold
+        self.height = self.ft.get_sized_height()
+        self.ascent = self.ft.get_sized_ascender()
+
+    def size(self, text: str) -> tuple[int, int]:
+        """(advance width, line height) of `text`."""
+        if not text:
+            return 0, self.height
+        r = self.ft.get_rect(text)
+        return max(r.x, 0) + r.width, self.height
+
+    def get_height(self) -> int:
+        return self.height
+
+    get_linesize = get_height
+
+    def render(self, text: str, antialias: bool, color: tuple[int, ...]) -> pygame.Surface:
+        """A per-pixel-alpha surface of the full line height, so baselines line up across strings."""
+        w = max(self.size(text)[0], 1)
+        surf = pygame.Surface((w, self.height), pygame.SRCALPHA)
+        if text:
+            self.ft.render_to(surf, (0, self.ascent), text, tuple(color)[:3])
+        return surf
+
+
+_fonts: dict[tuple[int, bool], Font] = {}
 _text_cache: dict[tuple, pygame.Surface] = {}
+overflow_count = 0                      # times a text had to be truncated even at its minimum size
+overflow_log: list[str] = []
 
 
-def get_font(size: int) -> pygame.font.Font:
-    """Cached default font of the given pixel size."""
-    if size not in _fonts:
-        _fonts[size] = pygame.font.Font(None, size)
-    return _fonts[size]
+def reset_overflow() -> None:
+    """Zero the overflow counter (the QA audit test calls this before rendering a page)."""
+    global overflow_count
+    overflow_count = 0
+    overflow_log.clear()
 
 
-def draw_text(surf: pygame.Surface, text: str, size: int, color: tuple[int, ...],
-              pos: tuple[int, int], anchor: str = "topleft") -> pygame.Rect:
-    """Render text with its `anchor` point (a pygame Rect attribute name) at `pos`."""
-    key = (text, size, tuple(color))
+def get_font(size: int, bold: bool = False) -> Font:
+    """Cached built-in font of the given pixel size."""
+    key = (size, bold)
+    if key not in _fonts:
+        _fonts[key] = Font(size, bold)
+    return _fonts[key]
+
+
+def wrap_text(text: str, size: int, max_w: int, bold: bool = False) -> list[str]:
+    """Greedy word wrap to `max_w` pixels; a word wider than the line is split by characters."""
+    font = get_font(size, bold)
+    lines: list[str] = []
+    cur = ""
+    for word in text.split(" "):
+        trial = f"{cur} {word}" if cur else word
+        if font.size(trial)[0] <= max_w:
+            cur = trial
+            continue
+        if cur:
+            lines.append(cur)
+        cur = word
+        while font.size(cur)[0] > max_w and len(cur) > 1:      # hard split
+            i = len(cur) - 1
+            while i > 1 and font.size(cur[:i])[0] > max_w:
+                i -= 1
+            lines.append(cur[:i])
+            cur = cur[i:]
+    lines.append(cur)
+    return lines
+
+
+def truncate(text: str, size: int, max_w: int, bold: bool = False) -> str:
+    """Cut `text` and add '...' so it is at most max_w wide."""
+    font = get_font(size, bold)
+    if font.size(text)[0] <= max_w:
+        return text
+    while text and font.size(text + "...")[0] > max_w:
+        text = text[:-1]
+    return text.rstrip() + "..."
+
+
+def _line_image(text: str, size: int, color: tuple[int, ...], bold: bool) -> pygame.Surface:
+    key = (text, size, tuple(color), bold)
     img = _text_cache.get(key)
     if img is None:
         if len(_text_cache) >= config.TEXT_CACHE_MAX:
             _text_cache.clear()
-        img = _text_cache[key] = get_font(size).render(text, True, color)
-    rect = img.get_rect(**{anchor: pos})
-    surf.blit(img, rect)
-    return rect
+        img = _text_cache[key] = get_font(size, bold).render(text, True, color)
+    return img
+
+
+def draw_text(surf: pygame.Surface, text: str, size: int, color: tuple[int, ...],
+              pos: tuple[int, int], anchor: str = "topleft", *, max_w: int | None = None,
+              wrap: bool = False, min_size: int | None = None, bold: bool = False) -> pygame.Rect:
+    """Render text with its `anchor` point (a pygame Rect attribute name) at `pos`.
+
+    With `max_w` the text is fitted: first the font shrinks down to `min_size` (default 70 % of
+    `size`), then it wraps onto several lines (`wrap=True`) or is cut with '...'. A cut at the
+    minimum size is counted in `overflow_count` (the QA audit test asserts it stays 0).
+    """
+    global overflow_count
+    lines = [text]
+    if max_w is not None and get_font(size, bold).size(text)[0] > max_w:
+        lo = min_size if min_size is not None else max(config.MIN_TEXT_SIZE, int(size * 0.7))
+        lo = min(lo, size)
+        while size > lo and get_font(size, bold).size(text)[0] > max_w:
+            size -= 1
+        if get_font(size, bold).size(text)[0] > max_w:
+            if wrap:
+                lines = wrap_text(text, size, max_w, bold)
+            else:
+                lines = [truncate(text, size, max_w, bold)]
+                overflow_count += 1
+                overflow_log.append(text)
+    if len(lines) == 1:
+        img = _line_image(lines[0], size, color, bold)
+        rect = img.get_rect(**{anchor: pos})
+        surf.blit(img, rect)
+        return rect
+    lh = get_font(size, bold).get_linesize()
+    imgs = [_line_image(t, size, color, bold) for t in lines]
+    block = pygame.Rect(0, 0, max(i.get_width() for i in imgs), lh * len(lines))
+    setattr(block, anchor, pos)
+    for k, img in enumerate(imgs):
+        r = img.get_rect(top=block.top + k * lh)
+        if "right" in anchor:
+            r.right = block.right
+        elif "left" in anchor:
+            r.left = block.left
+        else:
+            r.centerx = block.centerx
+        surf.blit(img, r)
+    return block
 
 
 class Button:
@@ -50,7 +171,8 @@ class Button:
         pygame.draw.rect(surf, fill, self.rect, border_radius=8)
         border = config.ACCENT_COLOR if hover else config.BUTTON_BORDER
         pygame.draw.rect(surf, border, self.rect, width=2, border_radius=8)
-        draw_text(surf, self.label, self.size, self.color, self.rect.center, "center")
+        draw_text(surf, self.label, self.size, self.color, self.rect.center, "center",
+                  max_w=self.rect.w - 16, min_size=max(config.MIN_TEXT_SIZE, int(self.size * 0.6)))
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -202,8 +324,8 @@ class NumberField:
     - `value` is the applied number (clamped to lo/hi when given; rounded when is_int).
     - `focused` is True while editing: the scene should let Esc/Enter reach the field first
       (e.g. do not treat Esc as "Back" while focused) and may slow time like the input box does.
-    - handle_event() returns True only when Enter applied a new valid value (read `.value`).
-    - The first typed character replaces the old text; clicking elsewhere cancels the edit.
+    - handle_event() returns True only when Enter (or a click elsewhere) applied a valid value (read `.value`).
+    - The first typed character replaces the old text; clicking elsewhere applies a valid edit (and drops an invalid one).
     - Call update(dt) each frame for the caret blink (optional).
     """
 
@@ -240,6 +362,11 @@ class NumberField:
         """The text shown: the edit buffer while focused, else the formatted value."""
         return self.text if self.focused else fmt_number(self._value, self.is_int)
 
+    def focus(self) -> None:
+        """Start editing (the scene uses this for Tab)."""
+        if not self.focused:
+            self._begin()
+
     def _begin(self) -> None:
         self.focused, self.invalid, self._fresh, self._blink = True, False, True, 0.0
         self.text = fmt_number(self._value, self.is_int)
@@ -272,7 +399,10 @@ class NumberField:
                 if not self.focused:
                     self._begin()
             elif self.focused:
-                self._end()
+                ok = self._apply()             # a click elsewhere commits the edit
+                if not ok:
+                    self._end()
+                return ok
         elif not self.focused:
             return False
         elif e.type == pygame.TEXTINPUT:
