@@ -370,18 +370,13 @@ class EquationManager:
                 if done >= config.REBUILDS_PER_FRAME:
                     break
 
-    def update(self, dt: float, game_t: float, swarm: Swarm, player_pos: np.ndarray,
-               base_dmg: float | None = None, cooldown: float | None = None) -> int:
-        """Rebuild one due t-curve, fire pulses on active equations; returns enemies killed.
+    def refresh(self, real_dt: float) -> None:
+        """Once per frame, in real time: build pending curves and re-build animated ones (t / variables).
 
-        base_dmg / cooldown are the upgrade stats (defaults: the config start values).
-        The killed enemies' summed max hp is left in `swarm.last_removed_max_hp`.
+        Curve work is throttled by the wall clock, so 2x / 3x game speed does not multiply it.
         """
-        period = config.PULSE_PERIOD if cooldown is None else max(cooldown, config.COOLDOWN_MIN)
-        self._t = game_t
         self._frame += 1
-        self._layer_age += dt
-        self.store.update(dt)
+        self._layer_age += real_dt
         changed = self.store.drain_changed()
         if changed:
             for e in self.entries:
@@ -389,7 +384,23 @@ class EquationManager:
                     e.var_dirty = True
         active = self.active()
         self._build_pending(active)
-        self._rebuild_dirty(active, dt)
+        self._rebuild_dirty(active, real_dt)
+
+    def update(self, dt: float, game_t: float, swarm: Swarm, player_pos: np.ndarray,
+               base_dmg: float | None = None, cooldown: float | None = None, refresh: bool = True) -> int:
+        """Advance `dt` game seconds: variable playback and pulses on active equations; returns enemies killed.
+
+        With refresh=True (standalone use) the curves are refreshed too, with dt as the frame time; the game
+        passes refresh=False for its substeps and calls refresh(real_dt) once per frame instead.
+        base_dmg / cooldown are the upgrade stats (defaults: the config start values).
+        The killed enemies' summed max hp is left in `swarm.last_removed_max_hp`.
+        """
+        period = config.PULSE_PERIOD if cooldown is None else max(cooldown, config.COOLDOWN_MIN)
+        self._t = game_t
+        self.store.update(dt)
+        if refresh:
+            self.refresh(dt)
+        active = self.active()
         for e in self.entries:
             e.flash = max(0.0, e.flash - dt)
         for e in active:

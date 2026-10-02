@@ -537,6 +537,7 @@ class GameScene(Scene):
             self._sim_step(total / n, direction, face)
             if not self.player.alive:
                 break
+        self.equations.refresh(real_dt)      # curve rebuilds: once per frame, in real time (not per substep)
 
     def _sim_step(self, dt: float, direction: tuple[float, float],
                   face: tuple[float, float] | None) -> None:
@@ -553,7 +554,7 @@ class GameScene(Scene):
             self.boss_banner = config.BOSS_BANNER_TIME
         self.swarm.update(dt, self.player.pos)
         killed = self.equations.update(dt, self.game_t, self.swarm, self.player.pos,
-                                      self.upgrades.base_dmg, self.upgrades.cooldown)
+                                      self.upgrades.base_dmg, self.upgrades.cooldown, refresh=False)
         self.kills += killed
         for _ in range(killed):
             self.emit("kill")
