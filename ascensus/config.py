@@ -391,6 +391,7 @@ SPEED_BTN_FONT = 26
 CURVE_KERNEL_FULL_R = 1.5        # smooth curve stamp: full alpha within this radius (px) ...
 CURVE_KERNEL_END_R = 4.0         # ... falling to 0 here
 CURVE_KERNEL_POWER = 2.0         # falloff exponent
+CURVE_FILL_SPACING = 2.0         # px between filled-in points when a grid cell's two crossings are joined
 DARK_LUMINANCE = 0.15            # relative luminance below this gets a light halo
 HALO_COLOR = (200, 205, 220)
 HALO_ALPHA = 110

@@ -139,7 +139,7 @@ class MenuScene(Scene):
         self.rebuild_timer += dt
         if self.rebuild_timer >= config.MENU_CURVE_REBUILD:
             self.rebuild_timer = 0.0
-            curve = build_curve(self.curve_func, self.t, config.GRID_STEP_T)
+            curve = build_curve(self.curve_func, self.t, config.GRID_STEP)
             self.curve_surf = render_curve(curve.points, config.ACCENT_COLOR)
             self.curve_surf.set_alpha(config.MENU_CURVE_ALPHA)
 

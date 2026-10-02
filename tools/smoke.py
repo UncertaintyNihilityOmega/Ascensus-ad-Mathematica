@@ -512,7 +512,7 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
 
     # change a setting from pause and check the effect: zoom rebuilds the grid and the curves
     game.paused = True
-    lines0, pts0 = len(game.grid_lines), len(game.equations.entries[0].curve.points)
+    lines0, pts0 = len(game.grid_lines), game.equations.entries[0].curve.points.copy()
     click(game, game.settings_btn.rect)
     page = game.next_scene
     step(page, screen)
@@ -525,7 +525,9 @@ def menu_pause_pages_phase(screen, w: int, h: int) -> None:
     assert page.next_scene is game
     step(game, screen)
     assert len(game.grid_lines) > lines0, "zoom change did not rebuild the grid"
-    assert game.equations.entries[0].curve.length_units > 10 and len(game.equations.entries[0].curve.points) != pts0
+    pts1 = game.equations.entries[0].curve.points
+    assert game.equations.entries[0].curve.length_units > 10
+    assert pts1.shape != pts0.shape or not np.allclose(pts1, pts0), "zoom change did not rebuild the curve"
     saved = json.loads(config.SETTINGS_PATH.read_text())["values"]
     assert saved == {"UNIT_PX": 40, "GRID_STEP": 4}
 

@@ -42,30 +42,40 @@ def _dilate(mask: np.ndarray, r: int) -> np.ndarray:
 
 
 def _find_roots(f: CurveFunc, t: float, step: int, size: tuple[int, int], unit: float) -> np.ndarray:
-    """Sign-change edges on a grid, bisected, with the pole filter. Returns screen (N, 2)."""
+    """Sign-change edges on a grid, bisected, with the pole filter; then the two crossings of every grid
+    cell are joined (marching squares) and filled in about every CURVE_FILL_SPACING px, so the curve is a
+    continuous line at any grid step. Returns screen (N, 2)."""
     W, H = size
     sx = np.arange(0, W + step, step)
     sy = np.arange(0, H + step, step)
     xs = (sx - W / 2 + 0.5) / unit
     ys = -(sy - H / 2 + 0.5) / unit
     X, Y = np.meshgrid(xs, ys)
+    ny, nx = X.shape
     found: list[np.ndarray] = []
+    # crossing per grid edge / node in math units (NaN = none); used to join each cell's crossings
+    h_root = np.full((ny, nx - 1, 2), np.nan, dtype=np.float32)   # horizontal edges (between columns)
+    v_root = np.full((ny - 1, nx, 2), np.nan, dtype=np.float32)   # vertical edges (between rows)
+    node = None                                                    # exact-zero grid nodes, when any
     with np.errstate(all="ignore"):
         V = np.broadcast_to(np.asarray(f(X, Y, t), dtype=float), X.shape)
         zero = V == 0                                   # exact-zero nodes are root points themselves
         if zero.any():
-            found.append(np.column_stack((X[zero] * unit + W / 2 - 0.5, H / 2 - 0.5 - Y[zero] * unit)))
+            node = np.full((ny, nx, 2), np.nan, dtype=np.float32)
+            node[zero] = np.column_stack((X[zero], Y[zero]))
+            found.append(np.column_stack((X[zero], Y[zero])))
         edges = [
-            (X[:, :-1], Y[:, :-1], X[:, 1:], Y[:, 1:], V[:, :-1], V[:, 1:]),
-            (X[:-1], Y[:-1], X[1:], Y[1:], V[:-1], V[1:]),
+            (h_root, X[:, :-1], Y[:, :-1], X[:, 1:], Y[:, 1:], V[:, :-1], V[:, 1:]),
+            (v_root, X[:-1], Y[:-1], X[1:], Y[1:], V[:-1], V[1:]),
         ]
-        for ax, ay, bx, by, va, vb in edges:
+        for store, ax, ay, bx, by, va, vb in edges:
             m = (np.isfinite(va) & np.isfinite(vb) & (np.sign(va) != np.sign(vb))
                  & (va != 0) & (vb != 0))               # zero endpoints are handled above
             ax, ay, bx, by, va, vb = (a[m] for a in (ax, ay, bx, by, va, vb))
             if ax.size == 0:
                 continue
             f0 = np.minimum(np.abs(va), np.abs(vb))
+            g0 = np.maximum(np.abs(va), np.abs(vb))
             for _ in range(config.BISECT_ITERS):
                 mx, my = (ax + bx) / 2, (ay + by) / 2
                 vm = np.asarray(f(mx, my, t), dtype=float)
@@ -73,12 +83,45 @@ def _find_roots(f: CurveFunc, t: float, step: int, size: tuple[int, int], unit: 
                 ax, ay, va = np.where(left, mx, ax), np.where(left, my, ay), np.where(left, vm, va)
                 bx, by, vb = np.where(left, bx, mx), np.where(left, by, my), np.where(left, vb, vm)
             fr = np.minimum(np.abs(va), np.abs(vb))
-            ok = np.isfinite(fr) & (fr < config.POLE_FILTER * f0)  # real roots shrink, poles grow
-            rx, ry = ((ax + bx) / 2)[ok], ((ay + by) / 2)[ok]
-            found.append(np.column_stack((rx * unit + W / 2 - 0.5, H / 2 - 0.5 - ry * unit)))
+            gr = np.maximum(np.abs(va), np.abs(vb))
+            # POLE FILTER: around a real root the bracket values shrink, around a pole they grow. Compare
+            # both the smaller and the larger end: a root right next to a grid node has a tiny smaller end,
+            # but its larger end still shrinks, while a pole's larger end never does.
+            ok = np.isfinite(fr) & ((fr < config.POLE_FILTER * f0) | (gr < config.POLE_FILTER * g0))
+            roots = np.column_stack(((ax + bx) / 2, (ay + by) / 2))
+            idx = np.flatnonzero(m)[ok]
+            store.reshape(-1, 2)[idx] = roots[ok]
+            found.append(roots[ok])
     if not found:
         return np.zeros((0, 2), dtype=np.float32)
-    return np.vstack(found).astype(np.float32)
+    pts = np.vstack(found + [_join_cells(h_root, v_root, node, unit)])
+    return np.column_stack((pts[:, 0] * unit + W / 2 - 0.5, H / 2 - 0.5 - pts[:, 1] * unit)).astype(np.float32)
+
+
+def _join_cells(h_root: np.ndarray, v_root: np.ndarray, node: np.ndarray | None, unit: float) -> np.ndarray:
+    """Points filling the segment between the two crossings of every cell that has exactly two (its four
+    edges and four corners); cells with 1, 3 or 4 crossings (poles, saddles) keep only their crossings."""
+    h, v = ~np.isnan(h_root[..., 0]), ~np.isnan(v_root[..., 0])
+    count = h[:-1].astype(np.int8) + h[1:] + v[:, :-1] + v[:, 1:]
+    if node is not None:
+        z = ~np.isnan(node[..., 0])
+        count += z[:-1, :-1].astype(np.int8) + z[:-1, 1:] + z[1:, :-1] + z[1:, 1:]   # int: bool + bool is OR
+    ci, cj = np.nonzero(count == 2)                      # only the cells a curve passes through once
+    if ci.size == 0:
+        return np.zeros((0, 2))
+    parts = [h_root[ci, cj], h_root[ci + 1, cj], v_root[ci, cj], v_root[ci, cj + 1]]
+    if node is not None:
+        parts += [node[ci, cj], node[ci, cj + 1], node[ci + 1, cj], node[ci + 1, cj + 1]]
+    c = np.stack(parts, axis=1)                          # (n, 4 or 8, 2)
+    ok = ~np.isnan(c[..., 0])
+    rows = np.arange(len(c))
+    first = ok.argmax(axis=1)
+    ok[rows, first] = False
+    a, b = c[rows, first].astype(np.float64), c[rows, ok.argmax(axis=1)].astype(np.float64)
+    n_fill = np.maximum(np.ceil(np.hypot(*(b - a).T) * unit / config.CURVE_FILL_SPACING), 1).astype(int)
+    out = [a + (b - a) * (k / n_fill)[:, None] for k in range(1, int(n_fill.max(initial=1)))]
+    out = [o[k < n_fill] for k, o in enumerate(out, start=1)]
+    return np.vstack(out) if out else np.zeros((0, 2))
 
 
 def build_curve(f: CurveFunc, t: float = 0.0, step: int | None = None,

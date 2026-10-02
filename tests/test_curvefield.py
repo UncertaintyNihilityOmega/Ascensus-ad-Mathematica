@@ -2,6 +2,7 @@
 import os
 
 import numpy as np
+import pytest
 
 from ascensus import config, view
 from ascensus.config import UNIT_PX
@@ -223,3 +224,37 @@ def test_render_points_outside_the_surface_are_safe():
     pts = np.array([[-50, -50], [-2, 10], [1e4, 5], [5, 1e4], [3, 3]], np.float32)
     a = _alpha(pts, (255, 255, 255), (20, 20))
     assert a.shape == (20, 20) and a[3, 3] == 255 and a[0, 10] > 0
+
+
+# --- curves are continuous lines, not beads (cells joined marching-squares style) ----------------------
+TRUTH = {                                   # the exact curve in math units, sampled densely
+    "x^2+y^2=9": lambda s: (3 * np.cos(s * 2 * np.pi), 3 * np.sin(s * 2 * np.pi)),
+    "y = 2sin(x)": lambda s: ((s - 0.5) * 16, 2 * np.sin((s - 0.5) * 16)),
+    "y = x": lambda s: ((s - 0.5) * 16, (s - 0.5) * 16),
+}
+
+
+def _coverage_gap(points, text, size, unit=50):
+    """Largest distance (px) from a point of the exact curve inside the window to the nearest curve point."""
+    w, h = size
+    mx, my = TRUTH[text](np.linspace(0, 1, 20000))
+    tx, ty = w / 2 - 0.5 + mx * unit, h / 2 - 0.5 - my * unit
+    keep = (tx > 3) & (tx < w - 3) & (ty > 3) & (ty < h - 3)
+    tx, ty = tx[keep], ty[keep]
+    from math import ceil
+    best = np.full(tx.shape, np.inf)
+    for k in range(0, len(points), 2000):                 # chunked to keep the distance matrix small
+        chunk = points[k:k + 2000]
+        d = np.hypot(tx[:, None] - chunk[None, :, 0], ty[:, None] - chunk[None, :, 1])
+        best = np.minimum(best, d.min(axis=1))
+    return float(best.max())
+
+
+@pytest.mark.parametrize("size", [(400, 300), (700, 400)])
+@pytest.mark.parametrize("step", [3, 5])
+@pytest.mark.parametrize("text", sorted(TRUTH))
+def test_curve_points_cover_the_curve(text, step, size):
+    """Every bit of the true curve has a computed point within 2 px: no beads, no holes. (y = 2sin(x) at
+    700x400 passes within 0.001 of a grid node, where the old pole filter dropped the real root.)"""
+    pts = build_curve(parse_equation(text).func, 0.0, step, size=size, unit=50).points
+    assert _coverage_gap(pts, text, size) <= 2.0

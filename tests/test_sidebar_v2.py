@@ -253,7 +253,9 @@ def test_only_active_entries_own_surfaces_and_queued_layer_is_shared(tmp_path):
     assert layer is not None and layer.get_size() == (view.W, view.H)
     # a queued vertical line is visible in the shared layer
     q = next(e for e in queued if len(e.curve.points))
-    x, y = (int(v) for v in q.curve.points[len(q.curve.points) // 2])
+    pts = q.curve.points
+    inside = pts[(pts[:, 0] >= 0) & (pts[:, 0] < view.W) & (pts[:, 1] >= 10) & (pts[:, 1] < view.H - 10)]
+    x, y = (int(round(v)) for v in inside[len(inside) // 2])
     assert layer.get_at((x, y)).a == config.ALPHA_QUEUED
     # a change does not refresh the layer until QUEUED_LAYER_PERIOD has passed
     m.delete(len(m.entries) - 1)

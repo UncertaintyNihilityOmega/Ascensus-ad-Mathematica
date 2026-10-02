@@ -27,6 +27,7 @@ class EquationEntry:
     rebuild_timer: float = 0.0
     stale: int | None = None                 # frame of a rebuild whose surface is not re-rendered yet
     var_dirty: bool = False                  # a variable this equation uses changed since its last build
+    coarse: bool = False                     # last built on the fast GRID_STEP_T grid (refined once it settles)
 
 
 def pulse_damage(length_units: float, base_dmg: float | None = None) -> float:
@@ -181,6 +182,7 @@ class EquationManager:
     def _rebuild(self, e: EquationEntry, keep_surface: bool = False) -> None:
         step = config.GRID_STEP_T if (e.parsed.uses_t or e.var_dirty) else config.GRID_STEP
         e.var_dirty = False
+        e.coarse = step > config.GRID_STEP
         e.curve = build_curve(e.parsed.func, self._t, step, vars=self.store.values)
         if keep_surface and e.surface is not None:
             e.stale = self._frame               # keep showing the old curve; draw re-renders next frame
@@ -349,8 +351,9 @@ class EquationManager:
                 budget -= 1
 
     def _is_dirty(self, e: EquationEntry) -> bool:
-        """An active curve animates when it uses t or a variable that changed since its last build."""
-        return e.parsed.uses_t or e.var_dirty
+        """An active curve animates when it uses t or a variable that changed since its last build; a curve
+        left on the coarse grid by an animation is rebuilt once more, finely, when it has settled."""
+        return e.parsed.uses_t or e.var_dirty or e.coarse
 
     def _rebuild_dirty(self, active: list[EquationEntry], dt: float) -> None:
         """Dirty active curves rebuild at most T_REBUILD_HZ each, REBUILDS_PER_FRAME per frame, round-robin."""
