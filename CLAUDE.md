@@ -26,6 +26,7 @@ A Python prototype of a survival game where typed math curves are the weapons. T
 - `mathparse.py` and `curvefield.build_curve` must not import pygame, so the tests stay headless.
 - The equation evaluator must use the AST whitelist plus `{"__builtins__": {}}` (ARCHITECTURE §2). Never use eval on raw user text.
 - `pygame.surfarray` arrays are indexed `[x, y]`; numpy grids from meshgrid are `[row=y, col=x]`. Convert carefully.
-- Use only the default font (`pygame.font.Font(None, size)`). Draw icons with primitives, not Unicode glyphs.
+- Text goes through `ui/widgets.py` (`get_font` / `draw_text`, pygame.freetype with the built-in font, `origin=True`). Never call `pygame.font` directly. Icons come from `ui/icons.py` (Kenney CC0 PNGs), or are drawn with primitives; no Unicode glyphs.
+- Tests must never touch the real `save/` folder. Save paths are read at call time (`equations.USE_CONFIG`), and `tests/conftest.py` fails the run if `save/` changes.
 - Keep the code plain and readable: type hints, short docstrings, no frameworks beyond pygame-ce and numpy.
 - Don't change the curve algorithm in ARCHITECTURE §3 without a failing test that shows why.
