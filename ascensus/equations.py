@@ -157,15 +157,17 @@ class EquationManager:
         self._layer_tiles: list | None = None
         self._layer_sig: tuple | None = None
         self._layer_age = 1e9                   # seconds since the layer was last refreshed
+        self._undo: list[tuple[EquationEntry, int, dict]] = []   # (entry, index, its removed variables)
 
     # --- list operations -------------------------------------------------
     def _free_color(self) -> tuple[int, int, int]:
-        """First unused palette colour; once all are used, the least-used one (cycling)."""
-        counts = {c: 0 for c in config.CURVE_PALETTE_20}
+        """First unused auto colour (the palette without Black/Graphite, which hide on the dark
+        background); once all are used, the least-used one (cycling)."""
+        counts = {c: 0 for c in config.CURVE_PALETTE_AUTO}
         for e in self.entries:
             if e.color in counts:
                 counts[e.color] += 1
-        return min(config.CURVE_PALETTE_20, key=lambda c: counts[c])
+        return min(config.CURVE_PALETTE_AUTO, key=lambda c: counts[c])
 
     def set_color(self, i: int, color: tuple[int, int, int]) -> None:
         """Give row i a new curve colour (the surface re-renders; saved)."""
@@ -251,9 +253,48 @@ class EquationManager:
         self.save()
 
     def delete(self, i: int) -> None:
-        del self.entries[i]
+        """Remove row i; the entry (and the variables only it used) is remembered for undo_delete()."""
+        before = dict(self.store.vars)
+        entry = self.entries.pop(i)
         self._sync_vars()
+        removed = {n: v for n, v in before.items() if n not in self.store.vars}
+        self._undo.append((entry, i, removed))
+        del self._undo[:-config.UNDO_MAX]
         self.save()
+
+    @property
+    def can_undo(self) -> bool:
+        """True when a deleted equation can be brought back."""
+        return bool(self._undo)
+
+    def undo_delete(self) -> EquationEntry | None:
+        """Re-insert the most recently deleted equation at its old row (clamped), with its variables.
+
+        Returns the entry, or None when there is nothing to undo or it cannot come back (list full: it
+        stays on the stack; name or variable clash with newer equations: it is dropped).
+        """
+        if not self._undo:
+            return None
+        entry, index, removed = self._undo[-1]
+        if len(self.entries) >= config.MAX_ROWS:
+            return None
+        self._undo.pop()
+        try:
+            self._check_name(entry.parsed)
+            self._check_vars(entry.parsed)
+        except EquationError:
+            return None
+        self.entries.insert(min(index, len(self.entries)), entry)
+        had = set(self.store.vars)
+        self._sync_vars(quiet=True)
+        for name, var in removed.items():           # variables that came back keep their old value / state
+            if name not in had and name in self.store.vars:
+                self.store.vars[name] = var
+                self.store.values[name] = var.value
+        entry.curve, entry.surface, entry.tiles, entry.stale = None, None, None, None
+        entry.var_dirty, entry.rebuild_timer = False, 0.0
+        self.save()
+        return entry
 
     def move(self, src: int, dst: int) -> None:
         """Move row src so it ends up at index dst."""
@@ -299,6 +340,7 @@ class EquationManager:
         Active curves build at once; queued ones build progressively in update().
         """
         self.entries = []
+        self._undo.clear()
         self.store.sync([], quiet=True)
         if self.save_path is None:
             return
@@ -308,6 +350,20 @@ class EquationManager:
             return
         try:
             data = json.loads(self.save_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        self.apply_data(data)
+
+    def apply_data(self, data: dict) -> None:
+        """Replace the list from a save-shaped dict {"equations": [{text, enabled, color}], "variables": {...}}.
+
+        Used by load() and by savegame.restore(). Unparsable entries are skipped; no file is written (call
+        save() for that). Variable `dir` (the ping-pong direction) is restored when present.
+        """
+        self.entries = []
+        self._undo.clear()
+        self.store.sync([], quiet=True)
+        try:
             rows = data["equations"] if "equations" in data else data[LEGACY_KEY]
             for row in rows:
                 try:
@@ -317,7 +373,10 @@ class EquationManager:
                     continue
             self._sync_vars(quiet=True)
             self.store.load_values(data.get("variables"))
-        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            for name, row in (data.get("variables") or {}).items():
+                if name in self.store.vars and isinstance(row, dict):
+                    self.store.vars[name].dir = -1 if row.get("dir") == -1 else 1
+        except (ValueError, KeyError, TypeError, AttributeError):
             return
         finally:
             self._sync_vars(quiet=True)

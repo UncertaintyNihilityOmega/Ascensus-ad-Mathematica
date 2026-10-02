@@ -128,15 +128,22 @@ ALPHA_IDLE = 90
 ALPHA_PULSE = 255
 ALPHA_QUEUED = 30
 PULSE_FADE = 0.25
-CURVE_PALETTE = [
-    (0, 255, 255), (255, 60, 200), (120, 255, 60), (255, 200, 40),
-    (160, 110, 255), (255, 120, 60), (60, 160, 255), (255, 90, 120),
+# Equation colours (W4): 20 named swatches, shown as a 5 x 4 grid of rows in the sidebar picker.
+CURVE_PALETTE_20 = [
+    (255, 255, 255), (192, 198, 212), (128, 134, 150), (70, 74, 88), (0, 0, 0),           # neutrals
+    (255, 59, 48), (255, 149, 0), (255, 214, 10), (190, 240, 40), (52, 199, 89),          # warm
+    (0, 199, 170), (0, 220, 255), (90, 170, 255), (40, 90, 255), (94, 92, 230),           # cool
+    (150, 90, 255), (190, 80, 230), (255, 45, 200), (255, 120, 170), (165, 110, 60),      # purple to brown
 ]
-CURVE_PALETTE_20 = CURVE_PALETTE + [        # equation colour picker (5 x 4); the first 8 match CURVE_PALETTE
-    (255, 255, 255), (255, 160, 200), (60, 230, 170), (200, 255, 120),
-    (255, 235, 130), (140, 200, 255), (200, 150, 255), (255, 150, 80),
-    (90, 120, 255), (230, 70, 70), (150, 255, 220), (190, 190, 210),
+CURVE_PALETTE_NAMES = [
+    "White", "Silver", "Gray", "Graphite", "Black",
+    "Red", "Orange", "Yellow", "Lime", "Green",
+    "Teal", "Cyan", "Sky", "Blue", "Indigo",
+    "Violet", "Purple", "Magenta", "Pink", "Brown",
 ]
+# New equations take colours from this list (the palette without Black and Graphite, which are
+# nearly invisible on the dark background); the picker still offers all 20.
+CURVE_PALETTE_AUTO = [c for c, n in zip(CURVE_PALETTE_20, CURVE_PALETTE_NAMES) if n not in ("Black", "Graphite")]
 
 # Look
 BG_COLOR = (10, 12, 24)
@@ -344,3 +351,58 @@ FONT_SCALE = 0.72              # freetype size = pygame.font pixel size * this (
 MIN_TEXT_SIZE = 12            # draw_text never shrinks below this unless asked
 WINDOW_MIN_SIZE = (800, 600)  # smallest resizable window
 UPG_MIN_FONT = 14              # upgrade button labels shrink to this before being cut
+
+# --- P20: saves, Continue and undo (appended section) ---
+SLOTS_PATH = Path(os.environ.get("ASCENSUS_SLOTS", ROOT / "save" / "slots"))
+SAVE_SLOTS = 6
+SAVE_VERSION = 1
+THUMB_SIZE = (320, 180)
+AUTOSAVE_PERIOD = 60.0           # seconds of play between autosaves
+UNDO_MAX = 10                    # deleted equations remembered for undo
+UNDO_TOAST_TIME = 5.0
+UNDO_TOAST_FONT = 26
+DELETE_CONFIRM_TIME = 3.0        # second click on Delete within this confirms
+SAVES_NARROW_W = 1000            # narrower than this: 2 columns x 3 rows instead of 3 x 2
+SAVES_GAP = 16
+SAVES_PAD = 8
+SAVES_BTN_H = 34
+SAVES_TIME_FONT = 48
+SAVES_SMALL_FONT = 22
+SAVES_BTN_FONT = 24
+SAVES_NOTE_TIME = 2.5            # seconds the "Saved" / "Could not load" note stays up
+SAVES_SHADOW = (0, 0, 0)
+
+# --- P19: controls, speed button and smooth curves (appended section) ---
+MOVE_MODE = "WASD"               # "WASD" (keys) or "Mouse" (walk toward the cursor)
+DASH_KEY = "j"                   # pygame key name; replaces R
+MOUSE_DEAD_ZONE = float(PLAYER_RADIUS)   # px around the player where the cursor means "stand still"
+SPEED_STEPS = (1, 2, 3)          # the speed button cycles through these
+SIM_MAX_SUBSTEP = 1 / 30         # a game step never advances more than this many seconds
+SIM_MAX_SUBSTEPS = 12            # cap per frame (a long hitch is simulated coarser instead of spiralling)
+SPEED_BTN_SIZE = (92, 38)
+SPEED_BTN_GAP = 14               # between the timer text and the button
+SPEED_BTN_ALPHA = 120            # fill alpha (semi-transparent)
+SPEED_BTN_FONT = 26
+CURVE_KERNEL_FULL_R = 1.5        # smooth curve stamp: full alpha within this radius (px) ...
+CURVE_KERNEL_END_R = 4.0         # ... falling to 0 here
+CURVE_KERNEL_POWER = 2.0         # falloff exponent
+DARK_LUMINANCE = 0.15            # relative luminance below this gets a light halo
+HALO_COLOR = (200, 205, 220)
+HALO_ALPHA = 110
+HALO_FULL_R = 2.5
+HALO_END_R = 5.0
+KEYFIELD_FONT = 24
+
+# Icons and colour picker (P18)
+ICON_COLOR = (255, 255, 255)        # default tint of icon() (the PNGs are white)
+ICON_INSET = 6                      # px a draw_icon() image is smaller than its rect (per axis)
+SIDEBAR_BTN_ICON = 16               # px, pencil / trash icons on a sidebar row
+PICKER_STRIP_H = 14                 # hue / brightness strip height in the colour popup
+PICKER_STRIP_GAP = 5                # px between the two strips
+PICKER_SEP = 6                      # px between the swatch grid and the Custom row (separator line)
+PICKER_PREVIEW = 22                 # preview swatch and hex box height
+PICKER_HEX_FONT = 18
+PICKER_TIP_FONT = 18
+PICKER_TIP_FILL = (30, 36, 62)
+PICKER_TIP_PAD = 4
+PICKER_HEX_MAX = 7                  # "#RRGGBB"

@@ -1,6 +1,8 @@
 """Per-run XP and upgrade stats (headless: no pygame). Everything resets with a new Upgrades()."""
 from __future__ import annotations
 
+import math
+
 from . import config
 
 # Cheapest-first tie-break order: HP, then DMG, then CD.
@@ -74,6 +76,21 @@ class Upgrades:
                 break
             bought.append(s)
         return bought
+
+    # --- persistence -----------------------------------------------------
+    def to_dict(self) -> dict:
+        """Saved state: levels, XP wallet, earned/spent totals and the Auto flag."""
+        return {"levels": dict(self.levels), "xp": self.xp, "earned": self.earned,
+                "spent": self.spent, "auto": self.auto}
+
+    def load_dict(self, data: dict) -> None:
+        """Restore from to_dict(); raises ValueError / KeyError / TypeError on bad data (nothing changes then)."""
+        levels = {s: int(data["levels"][s]) for s in STATS}
+        xp, earned, spent = float(data["xp"]), float(data["earned"]), float(data["spent"])
+        if min(levels.values()) < 0 or not all(math.isfinite(v) and v >= 0 for v in (xp, earned, spent)):
+            raise ValueError("negative upgrade value")
+        self.levels, self.xp, self.earned, self.spent = levels, xp, earned, spent
+        self.auto = bool(data.get("auto", False))
 
     # --- labels ----------------------------------------------------------
     def label(self, stat: str) -> str:

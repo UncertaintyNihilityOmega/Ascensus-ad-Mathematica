@@ -49,6 +49,17 @@ class Spawner:
         self.bosses_spawned += n
         return n
 
+    def to_dict(self) -> dict:
+        """Saved state: the spawn accumulator and how many bosses have spawned (the boss timer)."""
+        return {"acc": self.acc, "bosses_spawned": self.bosses_spawned}
+
+    def load_dict(self, data: dict) -> None:
+        """Restore from to_dict(); raises ValueError / KeyError / TypeError on bad data."""
+        acc, bosses = float(data["acc"]), int(data["bosses_spawned"])
+        if not math.isfinite(acc) or acc < 0 or bosses < 0:
+            raise ValueError("bad spawner state")
+        self.acc, self.bosses_spawned = acc, bosses
+
 
 class Swarm:
     """All enemies (and bosses); world positions in pixels."""
@@ -241,6 +252,34 @@ class Swarm:
             for name in _FIELDS:
                 setattr(self, name, getattr(self, name)[keep])
         return dead
+
+    def to_dict(self) -> dict:
+        """The enemy arrays as plain lists (boss flags included) plus the stats counters."""
+        out: dict = {name: getattr(self, name).tolist() for name in _FIELDS}
+        out["damage_dealt"] = float(self.damage_dealt)
+        out["bosses_killed"] = int(self.bosses_killed)
+        return out
+
+    def load_dict(self, data: dict) -> None:
+        """Replace the enemies from to_dict(); raises ValueError / KeyError / TypeError on bad data.
+
+        Nothing changes when the data is malformed (all arrays are built before any is assigned).
+        """
+        arrays: dict[str, np.ndarray] = {}
+        for name in _FIELDS:
+            arrays[name] = np.array(data[name], dtype=bool if name == "boss" else float)
+        n = len(arrays["hp"])
+        if n == 0 and arrays["pos"].size == 0:
+            arrays["pos"] = np.zeros((0, 2))
+        if arrays["pos"].shape != (n, 2) or any(len(arrays[name]) != n for name in _FIELDS):
+            raise ValueError("enemy arrays differ in length")
+        if not all(np.isfinite(arrays[name]).all() for name in _FIELDS if name != "boss"):
+            raise ValueError("non-finite enemy value")
+        damage, killed = float(data.get("damage_dealt", 0.0)), int(data.get("bosses_killed", 0))
+        for name in _FIELDS:
+            setattr(self, name, arrays[name])
+        self.damage_dealt, self.bosses_killed = damage, killed
+        self.last_removed_max_hp, self.last_removed_bosses = 0.0, 0
 
     def draw(self, screen: pygame.Surface, player_pos: np.ndarray) -> None:
         """Draw on-screen enemies (darker as hp drops, white while flashing) with red hp numbers."""

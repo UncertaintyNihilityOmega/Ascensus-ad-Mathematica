@@ -28,12 +28,12 @@ def swarm_at(*screen_pts):
 
 def test_add_errors_and_colors():
     m = mgr("x^2", "sin(x)")
-    assert [e.color for e in m.entries] == config.CURVE_PALETTE_20[:2]
+    assert [e.color for e in m.entries] == config.CURVE_PALETTE_AUTO[:2]
     with pytest.raises(EquationError):
         m.add("sin x")
     assert len(m.entries) == 2
     m.delete(0)
-    assert m.add("cos(x)").color == config.CURVE_PALETTE_20[0]      # first unused colour
+    assert m.add("cos(x)").color == config.CURVE_PALETTE_AUTO[0]      # first unused colour
 
 
 def test_full_sidebar(monkeypatch):

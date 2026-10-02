@@ -21,6 +21,9 @@ import pygame  # noqa: E402
 from ascensus import config, view  # noqa: E402
 from ascensus.scenes import QUIT, GameOverScene, GameScene, MenuScene  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import smoke_p18, smoke_p19, smoke_p20  # noqa: E402,E401
+
 DT = 1 / 60
 # (avg ms, p95 ms) gates. 1920 is looser than the 10/16 target of DESIGN_V2 until the P14 perf pass.
 PERF_LIMITS = {1280: (8.0, 16.0), 1920: (12.0, 18.0)}
@@ -147,12 +150,12 @@ def boss_phase(screen) -> None:
     # dash: R moves 160 px, no damage while it lasts; ignored while typing
     game.swarm = type(game.swarm)(game.rng)
     p0 = game.player.pos.copy()
-    key(game, pygame.K_r)
+    key(game, pygame.K_j)
     while game.player.dashing:
         step(game, screen)
     assert game.player.dash_count == 1 and abs(np.hypot(*(game.player.pos - p0)) - config.DASH_DIST) < 1.0
     key(game, pygame.K_RETURN)
-    key(game, pygame.K_r)
+    key(game, pygame.K_j)
     assert game.player.dash_count == 1
 
 
@@ -603,6 +606,11 @@ def run(w: int, h: int) -> None:
     boss_phase(screen)
     upgrades_phase(screen)
     menu_pause_pages_phase(screen, w, h)
+    for mod in (smoke_p18, smoke_p19, smoke_p20):
+        mod.phase(pygame.display.set_mode((w, h)))
+        view.set_size(w, h)
+        print(f"{mod.__name__}: OK at {w}x{h}")
+    screen = pygame.display.set_mode((w, h))
 
     # Pause / toggles
     t_before = game.game_t
@@ -753,7 +761,7 @@ def achievements_game_phase(screen) -> None:
     # buy an upgrade and use the dash
     game.upgrades.add_xp(500)
     click(game, game.upgrade_panel.rects["base_dmg"])
-    key(game, pygame.K_r)
+    key(game, pygame.K_j)
     assert game.profile.get_lifetime("dashes") == 1
     for _ in range(int(config.TOAST_TIME * 4 * 10)):             # let the queued toasts play out (~40 s)
         game.update(0.25)
@@ -815,7 +823,7 @@ def widgets_phase() -> None:
     assert settings.apply_saved(path) == 1 and config.UNIT_PX == 80
     settings.reset_all()
     path.unlink(missing_ok=True)
-    assert config.UNIT_PX == 50.0 and len(settings.tabs()) == 7
+    assert config.UNIT_PX == 50.0 and len(settings.tabs()) == 8
 
 
 def main() -> None:
