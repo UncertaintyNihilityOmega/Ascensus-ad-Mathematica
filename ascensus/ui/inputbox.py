@@ -55,6 +55,9 @@ class InputBox:
         self.error = ""
         self.error_timer = 0.0
         self.blink = 0.0
+        self.dragging = False                 # left button held after a click in the box: drag-select
+        self._last_click = (-10_000, -1)      # (ticks, text index) of the last click, for double-click
+        self._ibeam = False                   # the I-beam mouse cursor is shown
 
     def on_resize(self) -> None:
         """Re-centre the box at the bottom of the current view."""
@@ -125,6 +128,67 @@ class InputBox:
         elif k == pygame.K_v:
             self._insert(clean_paste(get_clipboard()))
 
+    # --- mouse ------------------------------------------------------------
+    def _inner(self) -> pygame.Rect:
+        return self.rect.inflate(-2 * config.INPUT_PAD, -4)
+
+    def _scroll(self) -> int:
+        """Horizontal text scroll in px (keeps the cursor visible); draw() and index_at() share it."""
+        cursor_x = get_font(config.INPUT_FONT).size(self.text[:self.cursor])[0]
+        return max(0, cursor_x - self._inner().width + 4)
+
+    def index_at(self, x: int) -> int:
+        """The character boundary nearest to screen x (0..len(text))."""
+        font = get_font(config.INPUT_FONT)
+        rel = x - self._inner().left + self._scroll()
+        widths = [font.size(self.text[:i])[0] for i in range(len(self.text) + 1)]
+        return min(range(len(widths)), key=lambda i: abs(widths[i] - rel))
+
+    def _word_at(self, i: int) -> tuple[int, int]:
+        """(start, end) of the run of letters/digits/_ around index i (or the single character there)."""
+        word = lambda c: c.isalnum() or c == "_"          # noqa: E731
+        if not self.text:
+            return 0, 0
+        j = min(i, len(self.text) - 1)
+        if i > 0 and (i == len(self.text) or not word(self.text[i])) and word(self.text[i - 1]):
+            j = i - 1
+        if not word(self.text[j]):
+            return j, j + 1
+        a = b = j
+        while a > 0 and word(self.text[a - 1]):
+            a -= 1
+        while b < len(self.text) and word(self.text[b]):
+            b += 1
+        return a, b
+
+    def _mouse_down(self, e: pygame.event.Event) -> None:
+        """Click: place the cursor; Shift+click: extend; double-click: select a word; then drag-select."""
+        self.focus()
+        self.blink = 0.0
+        i = self.index_at(e.pos[0])
+        now = pygame.time.get_ticks()
+        last_t, last_i = self._last_click
+        self._last_click = (now, i)
+        if now - last_t <= config.DOUBLE_CLICK_MS and abs(i - last_i) <= 1:
+            self.anchor, self.cursor = self._word_at(i)
+            self.dragging = False
+            return
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            self._move(i, extend=True)
+        else:
+            self.anchor, self.cursor = i, i
+        self.dragging = True
+
+    def _update_mouse_cursor(self) -> None:
+        """Show the I-beam over the box (only switching when it changes; ignored where unsupported)."""
+        over = self.rect.collidepoint(pygame.mouse.get_pos())
+        if over != self._ibeam:
+            self._ibeam = over
+            try:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_IBEAM if over else pygame.SYSTEM_CURSOR_ARROW)
+            except (pygame.error, AttributeError):
+                pass
+
     def show_error(self, msg: str) -> None:
         self.error, self.error_timer = msg, config.ERROR_SHOW_TIME
 
@@ -133,10 +197,20 @@ class InputBox:
         self.error_timer = max(0.0, self.error_timer - real_dt)
         if self.error_timer == 0.0:
             self.error = ""
+        self._update_mouse_cursor()
 
     def handle_event(self, e: pygame.event.Event) -> str | None:
         if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1 and self.rect.collidepoint(e.pos):
-            self.focus()
+            self._mouse_down(e)
+            return None
+        if self.dragging and e.type == pygame.MOUSEMOTION:
+            self.cursor = self.index_at(e.pos[0])           # the anchor stays where the drag started
+            self.blink = 0.0
+            return None
+        if self.dragging and e.type == pygame.MOUSEBUTTONUP and e.button == 1:
+            self.dragging = False
+            if self.anchor == self.cursor:
+                self.anchor = None
             return None
         if not self.focused:
             if e.type == pygame.KEYDOWN and e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
@@ -194,13 +268,13 @@ class InputBox:
             draw_text(screen, self.error, config.INPUT_ERROR_FONT, config.DANGER_COLOR,
                       (r.centerx, r.top - gap), "midbottom")
         font = get_font(config.INPUT_FONT)
-        inner = r.inflate(-2 * config.INPUT_PAD, -4)
+        inner = self._inner()
         if not self.text and not self.focused:
             draw_text(screen, config.INPUT_PLACEHOLDER, config.INPUT_FONT, config.DIM_TEXT_COLOR,
                       (inner.left, r.centery), "midleft")
             return
         cursor_x = font.size(self.text[:self.cursor])[0]
-        scroll = max(0, cursor_x - inner.width + 4)
+        scroll = self._scroll()
         old_clip = screen.get_clip()
         screen.set_clip(inner)
         sel = self.selection()

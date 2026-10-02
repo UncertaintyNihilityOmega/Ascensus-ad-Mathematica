@@ -261,6 +261,7 @@ INPUT_BORDER_FOCUS = (0, 220, 255)
 INPUT_PAD = 12
 INPUT_SELECT_COLOR = (40, 90, 160)
 CURSOR_BLINK = 0.5
+DOUBLE_CLICK_MS = 350          # two clicks this close (ms) select a word in the equation box
 
 # Menu flourish / text cache
 MENU_CURVE = "y = 2sin(x + t) + 4"
